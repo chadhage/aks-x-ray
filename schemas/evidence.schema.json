@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AKS X-Ray evidence bundle",
+  "description": "The dependency-free runtime validator additionally validates scope, catalogue digest, per-source list shapes and active measurement semantics.",
+  "type": "object",
+  "required": ["schemaVersion", "toolVersion", "catalogVersion", "catalogDigest", "collectedAt", "synthetic", "target", "scope", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "toolVersion": { "type": "string" },
+    "catalogVersion": { "type": "string" },
+    "catalogDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "synthetic": { "type": "boolean" },
+    "target": {
+      "type": "object",
+      "required": ["platform", "context", "subscription", "resourceGroup", "cluster"],
+      "properties": {
+        "platform": { "enum": ["cloud", "local"] },
+        "context": { "type": "string", "minLength": 1 },
+        "subscription": { "type": "string" },
+        "resourceGroup": { "type": "string" },
+        "cluster": { "type": "string" },
+        "binding": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "required": ["categories", "namespaces", "excludedNamespaces", "profile"],
+      "properties": {
+        "categories": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+        "namespaces": { "type": ["array", "null"], "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+        "excludedNamespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "profile": { "enum": ["production", "development"] }
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "propertyNames": { "enum": [
+        "context", "cluster", "nodepools", "diagnostics", "maintenance", "nodes", "namespaces",
+        "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "services",
+        "endpointslices", "ingresses", "networkpolicies", "pdbs", "pvcs", "pvs", "storageclasses",
+        "hpas", "serviceaccounts", "resourcequotas", "limitranges", "events", "clusterrolebindings",
+        "activeConnectivity", "activeE2E", "activeLoad", "activeSecurity"
+      ] },
+      "additionalProperties": { "$ref": "#/$defs/source" }
+    },
+    "activeRun": { "type": "object" }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["status", "collectedAt"],
+      "properties": {
+        "status": { "enum": ["ok", "error", "notCollected", "notApplicable"] },
+        "collectedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "number", "minimum": 0 },
+        "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+        "data": { "type": "object" },
+        "error": { "type": "object", "required": ["code", "message"], "properties": {
+          "code": { "type": "string" }, "message": { "type": "string" }, "exitCode": { "type": ["integer", "null"] }
+        } },
+        "reason": { "type": "string" },
+        "namespace": { "type": "string" },
+        "runId": { "type": "string" }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "const": "ok" } } }, "then": { "properties": { "data": { "type": "object" } }, "required": ["data"] } },
+        { "if": { "properties": { "status": { "const": "error" } } }, "then": { "properties": { "error": { "type": "object" } }, "required": ["error"] } }
+      ],
+      "additionalProperties": false
+    },
+    "command": {
+      "type": "object", "required": ["file", "args"],
+      "properties": {
+        "file": { "type": "string" }, "args": { "type": "array", "items": { "type": "string" } },
+        "format": { "enum": ["text"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

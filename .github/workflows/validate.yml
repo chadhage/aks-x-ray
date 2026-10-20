@@ -1,0 +1,35 @@
+name: Validate AKS X-Ray
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-validation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm run check
+      - run: npm test
+      - run: npm run build:site
+      - name: Verify deterministic generated artifacts
+        run: git --no-pager diff --exit-code -- site/index.html examples/demo-evidence.json
+      - name: Validate Bash launcher
+        if: runner.os == 'Linux'
+        run: bash scripts/aks-xray.sh catalog --categories networking,storage
+      - name: Validate PowerShell launcher
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\scripts\Invoke-AksXRay.ps1 catalog --categories networking,storage

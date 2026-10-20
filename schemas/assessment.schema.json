@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AKS X-Ray assessment",
+  "description": "Runtime validation additionally requires all controls declared by the selected categories and a recomputable summary.",
+  "type": "object",
+  "required": ["schemaVersion", "toolVersion", "catalogVersion", "catalogDigest", "assessedAt", "collectedAt", "synthetic", "target", "scope", "summary", "collection", "results"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "toolVersion": { "type": "string" },
+    "catalogVersion": { "type": "string" },
+    "catalogDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "assessedAt": { "type": "string", "format": "date-time" },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "synthetic": { "type": "boolean" },
+    "target": { "$ref": "evidence.schema.json#/properties/target" },
+    "scope": { "$ref": "evidence.schema.json#/properties/scope" },
+    "summary": {
+      "type": "object",
+      "required": ["total", "applicable", "evaluated", "counts", "partial", "alignmentPercent", "evidenceCoveragePercent"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 }, "applicable": { "type": "integer", "minimum": 0 },
+        "evaluated": { "type": "integer", "minimum": 0 }, "partial": { "type": "integer", "minimum": 0 },
+        "counts": {
+          "type": "object", "required": ["pass", "fail", "review", "unknown", "error", "notApplicable", "notRun"],
+          "properties": {
+            "pass": { "type": "integer", "minimum": 0 },
+            "fail": { "type": "integer", "minimum": 0 },
+            "review": { "type": "integer", "minimum": 0 },
+            "unknown": { "type": "integer", "minimum": 0 },
+            "error": { "type": "integer", "minimum": 0 },
+            "notApplicable": { "type": "integer", "minimum": 0 },
+            "notRun": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "alignmentPercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "evidenceCoveragePercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "collection": {
+      "type": "array", "items": {
+        "type": "object", "required": ["sourceId", "status", "collectedAt", "commands"],
+        "properties": {
+          "sourceId": { "type": "string" },
+          "status": { "enum": ["ok", "error", "notCollected", "notApplicable"] },
+          "collectedAt": { "type": "string", "format": "date-time" },
+          "durationMs": { "type": "number", "minimum": 0 },
+          "commands": { "type": "array", "items": { "$ref": "evidence.schema.json#/$defs/command" } },
+          "error": { "$ref": "evidence.schema.json#/$defs/source/properties/error" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "activeRun": { "type": "object" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "status", "message", "evidence", "incomplete"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" },
+          "status": { "enum": ["pass", "fail", "review", "unknown", "error", "notApplicable", "notRun"] },
+          "message": { "type": "string" }, "incomplete": { "type": "boolean" },
+          "classification": { "enum": ["adherence", "deviation", "conflict", "missing", "misconfiguration", "requires-context", "insufficient-evidence"] },
+          "observed": { "type": "object" },
+          "evidence": {
+            "type": "array", "items": {
+              "type": "object", "required": ["sourceId", "path", "status", "commands"],
+              "properties": {
+                "sourceId": { "type": "string" },
+                "path": { "type": "string" },
+                "status": { "enum": ["ok", "error", "notCollected", "notApplicable", "missing"] },
+                "collectedAt": { "type": "string", "format": "date-time" },
+                "commands": { "type": "array", "items": { "$ref": "evidence.schema.json#/$defs/command" } },
+                "error": { "$ref": "evidence.schema.json#/$defs/source/properties/error" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

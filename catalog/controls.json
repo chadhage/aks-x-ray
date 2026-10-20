@@ -1,0 +1,357 @@
+[
+  {
+    "id": "CP-001", "category": "control-plane", "title": "Bind the Kubernetes context to the ARM target", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["context", "cluster"], "sourceIds": ["aks-security", "local-api"], "failureType": "conflict",
+    "assertion": "The explicit kubeconfig server hostname must match an endpoint returned for the explicit Azure target. This prevents combining evidence from different clusters.",
+    "remediation": "Use a context obtained for this exact cluster. A DNS alias or proxy that cannot be matched requires independent identity verification; do not treat unverified binding as a pass."
+  },
+  {
+    "id": "CP-002", "category": "control-plane", "title": "Restrict cloud API-server exposure", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-waf"], "failureType": "misconfiguration",
+    "assertion": "The API is private, or has a nonempty authorized-IP list that does not contain a default route. This is configuration evidence, not an external reachability test.",
+    "remediation": "Use private API connectivity or narrowly scoped authorized IP ranges. Independently validate DNS, firewall and administrative access paths."
+  },
+  {
+    "id": "CP-003", "category": "control-plane", "title": "Use an SLA-backed cloud production tier", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-waf", "aks-reliability"], "failureType": "deviation", "productionOnly": true,
+    "assertion": "Production clusters declare Standard or Premium tier. A tier setting alone does not prove application availability.",
+    "remediation": "Review the control-plane SLA requirement and service tier against the workload SLO."
+  },
+  {
+    "id": "ID-001", "category": "identity", "title": "Enable Kubernetes RBAC", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security"], "failureType": "misconfiguration",
+    "assertion": "ARM explicitly reports enableRBAC=true.",
+    "remediation": "Enable supported RBAC authorization and scope permissions to least privilege."
+  },
+  {
+    "id": "ID-002", "category": "identity", "title": "Use managed Microsoft Entra authentication", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-waf"], "failureType": "missing",
+    "assertion": "aadProfile.managed is explicitly true. Group membership, PIM and Conditional Access require separate evidence.",
+    "remediation": "Integrate cluster authentication with managed Microsoft Entra ID and review privileged group access."
+  },
+  {
+    "id": "ID-003", "category": "identity", "title": "Disable local administrator accounts", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-waf"], "failureType": "misconfiguration",
+    "assertion": "disableLocalAccounts is explicitly true.",
+    "remediation": "Validate Entra recovery access, then disable local accounts through an approved change."
+  },
+  {
+    "id": "ID-004", "category": "identity", "title": "Check workload identity and OIDC configuration", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-pod-security"], "failureType": "conflict",
+    "assertion": "Workload identity requires OIDC. Both enabled is a configured capability, not proof that federated credentials or workload access work.",
+    "remediation": "Enable OIDC with workload identity and separately verify service-account federation and least-privilege Azure grants."
+  },
+  {
+    "id": "ID-005", "category": "identity", "title": "Review cluster-admin bindings", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["clusterrolebindings"], "sourceIds": ["aks-security", "arc-security"],
+    "assertion": "Inventory cluster-admin subjects. A binding can be legitimate; authorization appropriateness cannot be inferred from its name.",
+    "remediation": "Attach owner approval, break-glass design, access review, PIM and external Azure RBAC evidence."
+  },
+  {
+    "id": "ID-006", "category": "identity", "title": "Use dedicated workload service accounts", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "deviation",
+    "assertion": "In-scope workload specifications name a non-default service account. This is isolation evidence, not a permission audit.",
+    "remediation": "Assign dedicated service accounts and only the API or Azure permissions each workload needs."
+  },
+  {
+    "id": "ND-001", "category": "nodes", "title": "Check node readiness", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["nodes"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "misconfiguration",
+    "assertion": "At least one node exists and every observed node has Ready=True.",
+    "remediation": "Investigate node conditions, kubelet, connectivity, infrastructure health and scheduling impact."
+  },
+  {
+    "id": "ND-002", "category": "nodes", "title": "Check node resource pressure", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["nodes"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "deviation",
+    "assertion": "Every node explicitly reports MemoryPressure, DiskPressure and PIDPressure=False.",
+    "remediation": "Correlate pressure with workload requests, disk usage and time-series infrastructure metrics."
+  },
+  {
+    "id": "ND-003", "category": "nodes", "title": "Provide redundant cloud system-node capacity", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["nodepools", "cluster"], "sourceIds": ["aks-reliability"], "failureType": "deviation", "productionOnly": true,
+    "assertion": "Each operator-managed system pool has at least two nodes. AKS Automatic's service-managed system capacity requires separate review.",
+    "remediation": "Use supported system pools with at least two nodes and validate headroom during maintenance."
+  },
+  {
+    "id": "ND-004", "category": "nodes", "title": "Isolate system pools from application placement", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["nodepools", "cluster"], "sourceIds": ["aks-reliability"], "failureType": "deviation",
+    "assertion": "Operator-managed system pools declare CriticalAddonsOnly=true:NoSchedule.",
+    "remediation": "Review taints, tolerations and user pools before isolating system capacity."
+  },
+  {
+    "id": "ND-005", "category": "nodes", "title": "Review node SKU, OS and special hardware support", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["nodes"], "sourceIds": ["aks-reliability", "local-baseline"],
+    "assertion": "Node inventory alone cannot certify supported VM sizes, GPU drivers, Windows licensing, firmware or physical headroom.",
+    "remediation": "Attach current platform support, SKU availability, OS lifecycle, GPU/Windows constraints and capacity evidence."
+  },
+  {
+    "id": "NET-001", "category": "networking", "title": "Configure a cloud network-policy engine", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-network"], "failureType": "missing",
+    "assertion": "networkPolicy is configured or the network dataplane is Cilium. Enablement is not proof of effective packet filtering.",
+    "remediation": "Use a supported policy engine for the selected network model and validate actual allow/deny paths."
+  },
+  {
+    "id": "NET-002", "category": "networking", "title": "Declare default-deny ingress and egress baselines", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["networkpolicies", "namespaces", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"], "sourceIds": ["aks-network", "arc-security"], "failureType": "missing",
+    "assertion": "Each in-scope workload namespace has all-pod policies with empty ingress and egress rules. Additive policy unions and engine enforcement still need runtime verification.",
+    "remediation": "Create explicit default-deny baselines and narrowly scoped application/DNS exceptions; test effective isolation."
+  },
+  {
+    "id": "NET-003", "category": "networking", "title": "Review public service exposure", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["services", "namespaces"], "sourceIds": ["aks-network", "local-baseline"],
+    "assertion": "External IPs, NodePort and LoadBalancer services require an approved exposure model. Public endpoints are not automatically defects.",
+    "remediation": "Validate listener ownership, private/public intent, firewall paths, WAF, certificates and authentication."
+  },
+  {
+    "id": "NET-004", "category": "networking", "title": "Declare TLS on Kubernetes Ingress objects", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["ingresses", "namespaces"], "sourceIds": ["aks-network", "arc-security"], "failureType": "missing",
+    "assertion": "Every in-scope Ingress declares TLS. Upstream termination and Gateway API require independent review; certificate contents are not collected.",
+    "remediation": "Configure TLS or document an approved upstream termination design, then validate protocol and certificate behavior."
+  },
+  {
+    "id": "NET-005", "category": "networking", "title": "Check ready service endpoints", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["services", "endpointslices", "namespaces"], "sourceIds": ["aks-network", "aks-reliability"], "failureType": "conflict",
+    "assertion": "Selector-based, non-ExternalName services have at least one explicitly ready EndpointSlice endpoint with an address.",
+    "remediation": "Review selectors, readiness, target ports, endpoints and dataplane connectivity."
+  },
+  {
+    "id": "NET-006", "category": "networking", "title": "Detect cloud pod/service address conflicts", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-network"], "failureType": "conflict",
+    "assertion": "Observed pod/service CIDRs do not overlap and the configured DNS IP belongs to a service CIDR. VNet, peering and on-premises overlap are outside this limited comparison.",
+    "remediation": "Reconcile the full address plan, routes, peering, DNS and dual-stack requirements before changing a network model."
+  },
+  {
+    "id": "NET-007", "category": "networking", "title": "Review egress, metadata isolation and DNS dependencies", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-network", "aks-security", "local-baseline"],
+    "assertion": "Cluster settings do not prove NSG/UDR/firewall intent, SNAT headroom, metadata blocking, proxy behavior, private endpoints or effective DNS.",
+    "remediation": "Attach effective routes, NSG/firewall decisions, DNS/LocalDNS tests, required outbound access, IPAM and SNAT metrics. Scope authorized packet tests separately."
+  },
+  {
+    "id": "SEC-001", "category": "security", "title": "Avoid privileged and Windows HostProcess containers", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "misconfiguration",
+    "assertion": "No in-scope regular, init or ephemeral container explicitly enables privileged or HostProcess mode.",
+    "remediation": "Remove elevated modes unless a reviewed platform component requires them; record compensating controls."
+  },
+  {
+    "id": "SEC-002", "category": "security", "title": "Disable Linux privilege escalation", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces", "nodes"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "missing",
+    "assertion": "Every in-scope Linux container explicitly sets allowPrivilegeEscalation=false.",
+    "remediation": "Set allowPrivilegeEscalation=false in application container security contexts."
+  },
+  {
+    "id": "SEC-003", "category": "security", "title": "Declare non-root Linux execution", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces", "nodes"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "missing",
+    "assertion": "Effective container/pod settings require non-root or a positive UID, with no contradictory UID 0 or explicit runAsNonRoot=false.",
+    "remediation": "Use compatible non-root images and explicit pod/container security contexts; test filesystem and port permissions."
+  },
+  {
+    "id": "SEC-004", "category": "security", "title": "Drop Linux capabilities by default", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces", "nodes"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "deviation",
+    "assertion": "Every in-scope Linux container drops ALL and does not add capabilities. Necessary additions require a reviewed exception.",
+    "remediation": "Drop all capabilities and justify any narrowly required additions."
+  },
+  {
+    "id": "SEC-005", "category": "security", "title": "Avoid host namespace sharing", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-security", "arc-security"], "failureType": "misconfiguration",
+    "assertion": "Workload specs do not enable hostNetwork, hostPID or hostIPC.",
+    "remediation": "Remove host namespace sharing or document a platform-level exception and isolation controls."
+  },
+  {
+    "id": "SEC-006", "category": "security", "title": "Avoid hostPath mounts", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-security", "arc-security"], "failureType": "misconfiguration",
+    "assertion": "In-scope workloads do not mount hostPath volumes. Host paths themselves are not persisted.",
+    "remediation": "Use supported volume abstractions and avoid exposing host filesystems to applications."
+  },
+  {
+    "id": "SEC-007", "category": "security", "title": "Declare Linux seccomp isolation", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces", "nodes"], "sourceIds": ["aks-security", "arc-security"], "failureType": "missing",
+    "assertion": "Effective pod/container seccomp type is RuntimeDefault or Localhost. Local profile content and implicit node defaults are not verified.",
+    "remediation": "Declare a supported seccomp profile and validate any custom profile on every eligible node."
+  },
+  {
+    "id": "SEC-008", "category": "security", "title": "Avoid unversioned and latest image references", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-images", "arc-security"], "failureType": "deviation",
+    "assertion": "Images use a non-latest explicit tag or a digest. Tags can still be mutable; signatures, CVEs and provenance remain manual review.",
+    "remediation": "Prefer approved digest-pinned images with scanning, signing and controlled promotion."
+  },
+  {
+    "id": "SEC-009", "category": "security", "title": "Enable cloud Defender security monitoring", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-waf"], "failureType": "missing",
+    "assertion": "securityProfile.defender.securityMonitoring.enabled is explicitly true. Subscription plan, agent health and detection coverage are not established.",
+    "remediation": "Review Defender for Containers plan, enablement, agent health, vulnerability assessment and alert routing."
+  },
+  {
+    "id": "SEC-010", "category": "security", "title": "Review service-account tokens and secret delivery", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["serviceaccounts", "namespaces"], "sourceIds": ["aks-pod-security", "arc-security"],
+    "assertion": "Secret values, environment variables, commands and mounted files are deliberately not harvested. Token necessity and vault/federation access need owner evidence.",
+    "remediation": "Review automount settings, short-lived projected credentials, Key Vault/CSI use, rotation, image provenance and credential access. Do not attach secret values."
+  },
+  {
+    "id": "WK-001", "category": "workloads", "title": "Declare positive CPU and memory requests", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-resources", "arc-security"], "failureType": "missing",
+    "assertion": "Regular and init application containers have positive CPU and memory requests. Requests are not a rightsizing measurement.",
+    "remediation": "Set requests using representative observed demand and workload scheduling requirements."
+  },
+  {
+    "id": "WK-002", "category": "workloads", "title": "Declare positive CPU and memory limits", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-resources", "arc-security"], "failureType": "missing",
+    "assertion": "Regular and init application containers declare positive CPU and memory limits. CPU-throttling tradeoffs require workload-specific review.",
+    "remediation": "Set tested limits and review OOM/throttling time series; document intentional CPU-limit exceptions."
+  },
+  {
+    "id": "WK-003", "category": "workloads", "title": "Declare readiness and liveness probes", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-reliability", "arc-security"], "failureType": "missing",
+    "assertion": "Long-running regular containers declare readiness and liveness probes. Batch jobs are excluded; semantic probe correctness is not inferred.",
+    "remediation": "Implement meaningful probes and a startup probe where initialization time requires it."
+  },
+  {
+    "id": "WK-004", "category": "workloads", "title": "Detect request/limit conflicts", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-resources", "arc-security"], "failureType": "conflict",
+    "assertion": "Comparable CPU and memory requests do not exceed limits. Missing or unparseable quantities cannot pass.",
+    "remediation": "Correct inconsistent resource quantities and validate admission defaults and quotas."
+  },
+  {
+    "id": "WK-005", "category": "workloads", "title": "Check Deployment rollout availability", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "namespaces"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "deviation",
+    "assertion": "Nonzero Deployments have current observed generation and at least their desired available replicas at collection time.",
+    "remediation": "Investigate rollout conditions, image pulls, probes, scheduling, disruption budgets and recent changes."
+  },
+  {
+    "id": "WK-006", "category": "workloads", "title": "Validate HPA replica bounds", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["hpas", "namespaces"], "sourceIds": ["aks-reliability", "arc-security"], "failureType": "conflict",
+    "assertion": "Every observed HPA has valid min/max bounds. Metric freshness, target readiness and HPA/VPA interaction still require runtime review.",
+    "remediation": "Correct replica bounds and test metrics, targets and scaling behavior under representative demand."
+  },
+  {
+    "id": "WK-007", "category": "workloads", "title": "Detect failing application pods", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["pods", "namespaces"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "deviation",
+    "assertion": "No selected pod is Failed/Unknown or has CrashLoopBackOff, image-pull or container-configuration errors. Pending pods need review.",
+    "remediation": "Investigate sanitized event reasons, rollout history, resource constraints and container health without collecting application secrets."
+  },
+  {
+    "id": "REL-001", "category": "reliability", "title": "Run multiple replicas of persistent services", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "namespaces"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "deviation", "productionOnly": true,
+    "assertion": "Nonzero Deployments and StatefulSets have at least two desired replicas.",
+    "remediation": "Use multiple replicas where the application architecture permits and document single-instance constraints."
+  },
+  {
+    "id": "REL-002", "category": "reliability", "title": "Declare matching PodDisruptionBudgets", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "pdbs", "namespaces"], "sourceIds": ["aks-reliability", "aks-scheduler", "local-baseline"], "failureType": "missing",
+    "assertion": "Every multi-replica Deployment/StatefulSet is selected by a namespace-local PDB. This does not prove a disruption can complete.",
+    "remediation": "Define appropriately scoped PDBs and test maintenance against real readiness and capacity."
+  },
+  {
+    "id": "REL-003", "category": "reliability", "title": "Declare topology-aware placement", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "namespaces"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "missing",
+    "assertion": "Multi-replica services declare topology spread or pod anti-affinity. Effective physical placement is not established.",
+    "remediation": "Select supported host/zone fault domains and validate actual replica placement and scheduling behavior."
+  },
+  {
+    "id": "REL-004", "category": "reliability", "title": "Declare cloud availability-zone diversity", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["nodepools", "cluster"], "sourceIds": ["aks-reliability"], "failureType": "deviation", "productionOnly": true,
+    "assertion": "Every operator-managed pool spans at least two zones; Microsoft recommends three where supported. Regional/SKU constraints need review.",
+    "remediation": "Plan multi-zone capacity and application spreading, or document platform limitations and compensating recovery design."
+  },
+  {
+    "id": "REL-005", "category": "reliability", "title": "Detect PDBs that configure zero voluntary disruption", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "pdbs", "namespaces"], "sourceIds": ["aks-reliability", "aks-scheduler", "local-baseline"], "failureType": "conflict",
+    "assertion": "For known selected replicas, PDB minAvailable does not consume all replicas and maxUnavailable is not zero. Other selected pod types require manual review.",
+    "remediation": "Review intentional no-disruption requirements and their effect on drains, upgrades and surge capacity."
+  },
+  {
+    "id": "ST-001", "category": "storage", "title": "Check persistent volume claim binding", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["pvcs", "namespaces"], "sourceIds": ["aks-storage", "local-baseline"], "failureType": "deviation",
+    "assertion": "Every selected PVC explicitly reports Bound. An empty PVC list is not applicable, not a pass.",
+    "remediation": "Review storage classes, capacity, access modes, topology, CSI events and backend health."
+  },
+  {
+    "id": "ST-002", "category": "storage", "title": "Use topology-aware Azure Disk binding", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["storageclasses"], "sourceIds": ["aks-disk", "aks-storage"], "failureType": "deviation",
+    "assertion": "Observed disk.csi.azure.com storage classes use WaitForFirstConsumer. Other CSI drivers require their own support guidance.",
+    "remediation": "Use topology-compatible dynamic provisioning and validate zone/scheduling interactions."
+  },
+  {
+    "id": "ST-003", "category": "storage", "title": "Review retention, encryption and storage recovery", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["pvs", "storageclasses"], "sourceIds": ["aks-storage", "local-baseline"],
+    "assertion": "Reclaim-policy and CSI-driver inventory does not prove backend encryption, application consistency, expansion support or recoverability.",
+    "remediation": "Attach storage-specific encryption, access, expansion, snapshot/backup and tested restore evidence; decide Retain/Delete deliberately."
+  },
+  {
+    "id": "OBS-001", "category": "observability", "title": "Route cloud Kubernetes audit logs", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["diagnostics"], "sourceIds": ["aks-monitor", "aks-security"], "failureType": "missing",
+    "assertion": "A diagnostic setting routes enabled kube-audit, kube-audit-admin, audit or allLogs to an observed destination. Ingestion, retention and completeness require queries.",
+    "remediation": "Configure audit routing and verify recent records, retention, access controls and alerting at the destination."
+  },
+  {
+    "id": "OBS-002", "category": "observability", "title": "Enable cloud managed Prometheus collection", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-monitor"], "failureType": "missing",
+    "assertion": "azureMonitorProfile.metrics.enabled is explicitly true. Approved alternative metrics stacks need a documented exception.",
+    "remediation": "Enable managed metrics or document an equivalent monitored stack and prove scrape freshness."
+  },
+  {
+    "id": "OBS-003", "category": "observability", "title": "Enable cloud Container insights collection", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-monitor"], "failureType": "missing",
+    "assertion": "The omsagent add-on is explicitly enabled. This flag does not prove log ingestion or retention.",
+    "remediation": "Enable the supported logging integration or document an equivalent stack; validate end-to-end telemetry."
+  },
+  {
+    "id": "OBS-004", "category": "observability", "title": "Review warning-event reasons", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["events", "namespaces"], "sourceIds": ["aks-monitor", "local-baseline"],
+    "assertion": "Warning reasons are point-in-time observations, not a complete incident history. Event messages are intentionally omitted.",
+    "remediation": "Correlate event reasons and timestamps with metrics, operational history and approved log queries."
+  },
+  {
+    "id": "OBS-005", "category": "observability", "title": "Verify actionable alerts and SLO telemetry", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-monitor", "local-baseline"],
+    "assertion": "Static cluster inventory does not prove alert delivery, dashboard correctness, telemetry freshness or SLO compliance.",
+    "remediation": "Attach recent log/metric queries, rule coverage, retention settings, ownership and an alert delivery test."
+  },
+  {
+    "id": "GOV-001", "category": "governance", "title": "Enable the cloud Azure Policy add-on", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-policy"], "failureType": "missing",
+    "assertion": "The azurepolicy add-on is explicitly enabled. Assignments, enforcement mode, exemptions and compliance are not inferred.",
+    "remediation": "Enable supported policy integration and separately review assigned initiatives, enforcement, exemptions and observed compliance."
+  },
+  {
+    "id": "GOV-002", "category": "governance", "title": "Declare namespace resource quotas", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["resourcequotas", "namespaces", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"], "sourceIds": ["aks-scheduler", "arc-security"], "failureType": "missing",
+    "assertion": "Each selected workload namespace has a ResourceQuota with at least one hard limit. Limit suitability requires capacity review.",
+    "remediation": "Define CPU, memory and object quotas appropriate to tenancy and workload capacity."
+  },
+  {
+    "id": "GOV-003", "category": "governance", "title": "Review admission safeguards and compliance", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["namespaces", "limitranges"], "sourceIds": ["aks-policy", "arc-security"],
+    "assertion": "PSA namespace labels and LimitRange inventory do not establish policy enforcement, assignment compliance or exception approval.",
+    "remediation": "Review PSA/Gatekeeper/Azure Policy/Deployment Safeguards, defaults, drift, owners and approved exceptions. Validate denies with authorized server dry-runs."
+  },
+  {
+    "id": "CST-001", "category": "cost", "title": "Configure cloud workload capacity autoscaling", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["nodepools", "cluster"], "sourceIds": ["aks-waf", "aks-reliability"], "failureType": "deviation",
+    "assertion": "User pools enable cluster autoscaling, or node auto-provisioning mode is Auto. Fixed capacity may be an intentional exception.",
+    "remediation": "Choose tested autoscaling or NAP limits aligned to quotas, SLOs, scheduling and predictable demand."
+  },
+  {
+    "id": "CST-002", "category": "cost", "title": "Validate cluster-autoscaler bounds", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["nodepools"], "sourceIds": ["aks-reliability"], "failureType": "conflict",
+    "assertion": "Autoscaled pools declare nonnegative minimums and positive maximums with minCount <= maxCount. Temporary surge counts are not treated as invalid bounds.",
+    "remediation": "Correct autoscaler limits and verify Azure quota and upgrade/failure headroom."
+  },
+  {
+    "id": "CST-003", "category": "cost", "title": "Verify rightsizing and capacity economics", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-waf", "local-baseline"],
+    "assertion": "Requests, node counts and synthetic smoke latency cannot prove utilization, savings, throughput limits or production capacity.",
+    "remediation": "Attach representative CPU/memory/storage/network percentiles, throttling, pricing/commitment evidence, workload SLOs and a separately approved load campaign."
+  },
+  {
+    "id": "LC-001", "category": "lifecycle", "title": "Configure cloud Kubernetes automatic upgrades", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-reliability"], "failureType": "missing",
+    "assertion": "An automatic Kubernetes upgrade channel other than none is configured.",
+    "remediation": "Choose a supported upgrade strategy with staged testing, recovery and maintenance coordination."
+  },
+  {
+    "id": "LC-002", "category": "lifecycle", "title": "Configure cloud node OS automatic updates", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-reliability"], "failureType": "missing",
+    "assertion": "Node OS channel is SecurityPatch or NodeImage. Unmanaged/None needs an independently evidenced patch process.",
+    "remediation": "Use a supported OS update channel or attach proof of timely alternative patching and reboot handling."
+  },
+  {
+    "id": "LC-003", "category": "lifecycle", "title": "Declare cloud managed-upgrade maintenance windows", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["maintenance"], "sourceIds": ["aks-reliability"], "failureType": "missing",
+    "assertion": "Both aksManagedAutoUpgradeSchedule and aksManagedNodeOSUpgradeSchedule have nonempty maintenanceWindow definitions. Other schedules are not equivalent.",
+    "remediation": "Configure supported managed-upgrade windows and verify timing, duration and operational ownership."
+  },
+  {
+    "id": "LC-004", "category": "lifecycle", "title": "Verify Kubernetes and image support windows", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["cluster", "nodes"], "sourceIds": ["aks-security", "local-baseline"],
+    "assertion": "A version string or the existence of a newer version does not prove end of support. Support windows change and differ by platform and tier.",
+    "remediation": "Attach current Microsoft version/OS support documentation, regional availability, image currency and an approved upgrade plan."
+  },
+  {
+    "id": "BC-001", "category": "business-continuity", "title": "Prove application-consistent backup and restore", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-storage", "local-baseline"],
+    "assertion": "An installed backup product, snapshot or configured schedule is not proof of recoverability.",
+    "remediation": "Attach successful restore timestamps, application/data validation, backup isolation, encryption, retention, RPO/RTO and ownership. Never exercise a restore against production implicitly."
+  },
+  {
+    "id": "BC-002", "category": "business-continuity", "title": "Prove regional or site disaster recovery", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-waf", "local-baseline"],
+    "assertion": "One reachable cluster cannot demonstrate multi-region/site failover, dependency availability or business recovery objectives.",
+    "remediation": "Attach a recovery topology, dependency/data replication design, DNS failover plan and separately authorized failover rehearsal."
+  },
+  {
+    "id": "LOC-001", "category": "azure-local", "title": "Check Local ARM provisioning state", "severity": "high", "platforms": ["local"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["local-api", "local-baseline"], "failureType": "deviation",
+    "assertion": "The Local provisioned cluster explicitly reports provisioningState=Succeeded. This does not prove physical-host or Arc-agent health.",
+    "remediation": "Investigate provisioning operations, Arc resource bridge, connected-cluster agents and underlying host state."
+  },
+  {
+    "id": "LOC-002", "category": "azure-local", "title": "Provide redundant Local control-plane nodes", "severity": "high", "platforms": ["local"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["local-baseline", "local-api"], "failureType": "deviation", "productionOnly": true,
+    "assertion": "controlPlane.count is 3 or 5, following the Local baseline recommendation of three to five control-plane nodes and quorum-aware sizing.",
+    "remediation": "Review supported control-plane counts and spread them across actual physical failure domains."
+  },
+  {
+    "id": "LOC-003", "category": "azure-local", "title": "Verify physical hosts, storage and security posture", "severity": "high", "platforms": ["local"], "mode": "manual", "requires": [], "sourceIds": ["local-baseline", "arc-security"],
+    "assertion": "Kubernetes and cluster ARM metadata cannot prove certified hardware, TPM/Secure Boot, BitLocker, firmware, Storage Spaces Direct or host failover health.",
+    "remediation": "Attach approved Azure Local host validation, hardware/firmware lifecycle, encryption and physical fault-domain evidence. Reserve at least 15% host capacity as described in the Local baseline."
+  },
+  {
+    "id": "LOC-004", "category": "azure-local", "title": "Verify Arc integration and disconnected-operation dependencies", "severity": "high", "platforms": ["local"], "mode": "manual", "requires": [], "sourceIds": ["local-baseline", "arc-security", "aksarc-cli"],
+    "assertion": "An ARM show response does not prove Arc heartbeat, extension health, identity federation, outbound dependencies or disconnected-operation readiness.",
+    "remediation": "Attach Arc agent/extension status, policy/Defender/Monitor evidence, required endpoints, local DNS/time synchronization and the deployment-specific connectivity design."
+  },
+  {
+    "id": "ACT-001", "category": "active-validation", "title": "Resolve and reach a synthetic in-cluster service", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeConnectivity"], "sourceIds": ["aks-network", "local-baseline", "azure-cli-image"], "failureType": "deviation",
+    "assertion": "An explicitly authorized probe pod resolves the synthetic service and receives its expected HTTP marker. Only this isolated path is tested.",
+    "remediation": "Review test pod readiness, DNS/LocalDNS, service routing, approved test policies and image access. This does not validate all application network paths."
+  },
+  {
+    "id": "ACT-002", "category": "active-validation", "title": "Exercise the synthetic HTTP end-to-end path", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeE2E"], "sourceIds": ["aks-reliability", "azure-cli-image"], "failureType": "deviation",
+    "assertion": "Three client requests through loopback-only kubectl port-forward return the expected marker. External ingress, WAF and TLS are not tested.",
+    "remediation": "Investigate the synthetic workload and API port-forward path; separately authorize application-specific transaction tests."
+  },
+  {
+    "id": "ACT-003", "category": "active-validation", "title": "Measure bounded synthetic load-smoke thresholds", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeLoad"], "sourceIds": ["azure-load-testing", "aks-reliability", "azure-cli-image"], "failureType": "deviation",
+    "assertion": "Measured error percentage and nearest-rank p95 must meet the recorded operator-selected budgets. Safety caps: 200 requests, 4 workers, 30 seconds and 100 ms worker pacing. Budgets are not Microsoft SLOs.",
+    "remediation": "Inspect measured results and test budgets. This smoke test is not saturation, soak, capacity certification or production application performance validation."
+  },
+  {
+    "id": "ACT-004", "category": "active-validation", "title": "Validate restricted admission in the synthetic namespace", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeSecurity"], "sourceIds": ["aks-pod-security", "arc-security", "azure-testing-policy"], "failureType": "misconfiguration",
+    "assertion": "A privileged synthetic pod is rejected by restricted Pod Security Admission on a server-side dry-run. Unrelated RBAC or connectivity errors cannot count as successful rejection.",
+    "remediation": "Review the isolated namespace's PSA enforcement. This negative test does not certify existing namespaces or constitute exploitation or a full penetration test."
+  }
+]

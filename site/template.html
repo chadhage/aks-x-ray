@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AKS X-Ray: evidence-first assessments for AKS and AKS on Azure Local, grounded in official Microsoft guidance.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src data:; base-uri 'none'; form-action 'none'">
+  <title>AKS X-Ray | Evidence-first cluster diagnostics</title>
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style><!--XRAY_STYLE--></style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to assessment</a>
+  <header class="masthead">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">X</span><div><strong>AKS X-RAY</strong><span>Evidence. Context. Clarity.</span></div></div>
+    <div class="header-actions">
+      <label class="button" for="import-file">Open assessment JSON</label>
+      <input id="import-file" class="visually-hidden" type="file" accept=".json,application/json">
+      <button id="export-json" type="button">Export JSON</button>
+      <button id="print-report" type="button">Print</button>
+      <button id="toggle-theme" type="button" aria-label="Switch color theme">Theme</button>
+    </div>
+  </header>
+  <nav class="tabs" aria-label="Report sections">
+    <button type="button" data-view="assessment" aria-pressed="true">Assessment</button>
+    <button type="button" data-view="catalog" aria-pressed="false">Test catalogue</button>
+    <button type="button" data-view="method" aria-pressed="false">Method &amp; sources</button>
+  </nav>
+  <main id="main">
+    <div id="notification" class="notice" role="alert" hidden></div>
+    <section class="hero">
+      <p class="eyebrow">CLUSTER DIAGNOSTICS / OFFICIAL MICROSOFT GUIDANCE</p>
+      <h1>Clarity starts with evidence.</h1>
+      <p class="lede">Inspect the configuration. Expose the gaps. Know what still needs to be proven.</p>
+      <div class="hero-meta"><span id="platform-label" class="pill"></span><span id="context-label"></span><span id="catalog-label"></span></div>
+    </section>
+
+    <section id="assessment-view" aria-label="Assessment results">
+      <div id="report-banner" class="notice"></div>
+      <div class="metric-grid">
+        <article class="metric"><span>Observed deviations</span><strong id="metric-fail">-</strong><p>Configuration findings, not assumed incidents</p></article>
+        <article class="metric"><span>Verified alignment</span><strong id="metric-alignment">-</strong><p id="alignment-detail">Pass / (pass + fail), not a certification</p></article>
+        <article class="metric"><span>Evidence coverage</span><strong id="metric-coverage">-</strong><p>Complete pass/fail checks / all applicable checks</p></article>
+        <article class="metric"><span>Not yet proven</span><strong id="metric-unproven">-</strong><p>Review, unknown, error and not-run controls</p></article>
+      </div>
+      <section class="panel scope-panel" aria-labelledby="scope-heading">
+        <div><p class="eyebrow">ASSESSMENT BOUNDARY</p><h2 id="scope-heading">A snapshot, not a guarantee.</h2><p id="scope-description"></p></div>
+        <dl class="scope-facts">
+          <div><dt>Target binding</dt><dd id="binding-value"></dd></div>
+          <div><dt>Collected</dt><dd id="collected-value"></dd></div>
+          <div><dt>Baseline</dt><dd id="profile-value"></dd></div>
+        </dl>
+        <div id="status-bar" class="status-bar" aria-hidden="true"></div>
+        <div id="status-legend" class="legend"></div>
+      </section>
+      <div id="operational-alert" class="notice error-notice" hidden></div>
+      <section id="priorities" class="priority-grid" aria-label="Highest-priority deviations"></section>
+    </section>
+
+    <section id="catalog-intro" class="panel" hidden>
+      <p class="eyebrow">MODULAR BY DESIGN</p>
+      <h2>One category, or the whole architecture.</h2>
+      <p>Every control states exactly what it can prove, its evidence dependencies, platform applicability and official Microsoft references. Manual controls remain reviews; active controls never run as a side effect of collection.</p>
+      <div class="planner">
+        <label>Platform<select id="planner-platform"><option value="cloud">AKS on Azure</option><option value="local">AKS on Azure Local</option></select></label>
+        <label>Assessment category<select id="planner-category"><option value="all">All categories</option></select></label>
+        <label>Launcher<select id="planner-launcher"><option value="powershell">PowerShell</option><option value="bash">Bash</option><option value="node">Node.js</option></select></label>
+      </div>
+      <pre id="planned-command" class="command" tabindex="0"></pre>
+      <button id="copy-command" type="button">Copy command</button>
+      <p class="fine-print">Replace placeholders locally. Sign in yourself and supply an existing context. The microsite neither connects to Azure nor executes commands.</p>
+    </section>
+
+    <section id="results-section" aria-label="Controls">
+      <div class="section-heading"><div><p class="eyebrow" id="results-eyebrow">EVIDENCE REGISTER</p><h2 id="results-title">Findings &amp; open questions</h2></div><p id="result-count" role="status" aria-live="polite"></p></div>
+      <div class="filters">
+        <label class="search-field">Search controls<input id="search" type="search" placeholder="DNS, identity, backup, CP-001..." autocomplete="off"></label>
+        <label>Category<select id="category-filter"><option value="all">All categories</option></select></label>
+        <label id="status-filter-label">Result<select id="status-filter"><option value="all">All results</option></select></label>
+        <label id="platform-filter-label" hidden>Platform<select id="platform-filter"><option value="all">Both platforms</option><option value="cloud">AKS on Azure</option><option value="local">AKS on Azure Local</option></select></label>
+        <label>Test mode<select id="mode-filter"><option value="all">All modes</option><option value="passive">Read-only</option><option value="manual">Manual review</option><option value="active">Opt-in active</option></select></label>
+        <button id="reset-filters" type="button">Reset</button>
+      </div>
+      <div id="findings" class="findings"></div>
+      <div id="empty-state" class="panel" hidden>No controls match these filters. Reset filters to restore the full register.</div>
+    </section>
+
+    <section id="method-view" hidden>
+      <div class="two-column">
+        <article class="panel">
+          <p class="eyebrow">EVIDENCE CONTRACT</p><h2>What a result actually means</h2>
+          <dl class="definitions">
+            <div><dt>Pass</dt><dd>The specific assertion is supported by observed configuration or a recorded synthetic measurement. It is not proof of end-to-end compliance.</dd></div>
+            <div><dt>Fail</dt><dd>Observed evidence contradicts the stated recommendation or exposes a configuration conflict. Review workload context and approved exceptions before remediation.</dd></div>
+            <div><dt>Review</dt><dd>Owner intent, telemetry, physical infrastructure, policy assignments or operational evidence is required. Review is never counted as pass.</dd></div>
+            <div><dt>Unknown / error</dt><dd>Required access, API fields or valid measurements are missing, or evaluation failed. Unavailable data is never replaced with an empty successful result.</dd></div>
+            <div><dt>Not applicable / not run</dt><dd>Platform/profile excludes a control, or the user did not authorize an active test. Neither is successful evidence.</dd></div>
+          </dl>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">SAFETY &amp; LIMITATIONS</p><h2>No hidden cluster changes.</h2>
+          <ul class="spaced-list">
+            <li>Default collection uses Azure read operations and Kubernetes get/list only. No login, credential download, context switch, secret reads, exec or apply.</li>
+            <li>Inventory is projected before persistence. Secret values, kubeconfig credentials, environment values, application logs, commands, arbitrary annotations and event messages are not exported.</li>
+            <li>Reports still contain sensitive resource names, labels, endpoints, RBAC subjects and subscription metadata. Protect them and review before sharing.</li>
+            <li>Active tests require explicit authorization, a confirmed context and a verified target. Only owned synthetic resources are created and cleaned up.</li>
+            <li>Synthetic load is a bounded smoke test, not a full stress/soak campaign. Admission testing is defensive validation, not an exploitation-based penetration test.</li>
+            <li>Backups, failover, host security, Azure Local physical fault domains, external ingress/WAF, full effective routing, CVEs and identity governance need additional evidence.</li>
+          </ul>
+        </article>
+      </div>
+      <article class="panel method-panel">
+        <p class="eyebrow">SCORING WITHOUT FALSE CONFIDENCE</p><h2>Keep alignment separate from coverage.</h2>
+        <p>Alignment is pass / (pass + fail) and is suppressed when target binding is unverified. Coverage is complete pass/fail controls / all applicable controls, including manual reviews and not-run tests. A high alignment value with low coverage is not a healthy-cluster verdict. Production is the default recommendation profile; context-dependent tradeoffs are made explicit.</p>
+        <p>Collection is not an atomic snapshot: each source carries its own timestamp and command. Evidence and reports are versioned and paired with local SHA-256 hashes. Hashes detect changes; they do not authenticate the collector or certify the cluster. The paired evidence JSON contains the data behind each JSON pointer.</p>
+        <p id="source-policy"></p>
+      </article>
+      <div class="section-heading"><div><p class="eyebrow">FIRST-PARTY REFERENCE LIBRARY</p><h2>Microsoft guidance, traceable by control.</h2></div><span id="review-date"></span></div>
+      <div id="sources" class="source-grid"></div>
+    </section>
+  </main>
+  <footer><strong>AKS X-Ray</strong><span>Independently authored. Not a Microsoft product, support statement or compliance certification.</span><span>Offline by design. No analytics. No external assets.</span></footer>
+  <noscript><p class="notice">JavaScript is required for this interactive report. Read the paired assessment.md or assessment.json instead.</p></noscript>
+  <script id="xray-data" type="application/json"><!--XRAY_DATA--></script>
+  <script><!--XRAY_SCRIPT--></script>
+</body>
+</html>

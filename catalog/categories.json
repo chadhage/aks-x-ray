@@ -1,0 +1,17 @@
+[
+  { "id": "control-plane", "title": "Control plane", "description": "Target binding, API exposure and service tier." },
+  { "id": "identity", "title": "Identity & access", "description": "Entra integration, local accounts, workload identity and RBAC." },
+  { "id": "nodes", "title": "Nodes & compute", "description": "Node health, system pools, operating systems and capacity." },
+  { "id": "networking", "title": "Networking", "description": "CIDRs, DNS, policies, ingress, services and egress." },
+  { "id": "security", "title": "Workload security", "description": "Privilege, isolation, images, token exposure and runtime protection." },
+  { "id": "workloads", "title": "Workload health", "description": "Resources, probes, rollout health and autoscaling configuration." },
+  { "id": "reliability", "title": "Reliability & scheduling", "description": "Replicas, topology, disruption budgets and availability zones." },
+  { "id": "storage", "title": "Storage", "description": "Claims, CSI storage classes, expansion and retention decisions." },
+  { "id": "observability", "title": "Observability", "description": "Audit routing, logs, metrics, events and alerting evidence." },
+  { "id": "governance", "title": "Governance", "description": "Policy enablement, namespace quotas, defaults and compliance review." },
+  { "id": "cost", "title": "Cost & capacity", "description": "Autoscaling guardrails and evidence-based rightsizing review." },
+  { "id": "lifecycle", "title": "Lifecycle", "description": "Upgrade channels, maintenance and version-support review." },
+  { "id": "business-continuity", "title": "Backup & recovery", "description": "Recovery evidence, RPO/RTO, regional and site failure planning." },
+  { "id": "azure-local", "title": "Azure Local infrastructure", "description": "Local control plane, physical fault domains, Arc and host security." },
+  { "id": "active-validation", "title": "Authorized active tests", "description": "Isolated DNS, HTTP, admission-policy and bounded load smoke tests." }
+]
