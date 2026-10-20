@@ -15,7 +15,11 @@ The initial catalogue contains **71 controls across 15 architectural categories*
 
 ## Start with the microsite
 
+**Published microsite:** [chadhage.github.io/aks-x-ray](https://chadhage.github.io/aks-x-ray/).
+
 Open [site/index.html](site/index.html) directly in a browser. No web server, account, build, CDN or package installation is needed. It includes a clearly labelled synthetic report, the complete test catalogue, category/platform filters, a command builder, methodology and Microsoft source links.
+
+The [Pages workflow](.github/workflows/pages.yml) validates and rebuilds the site on pushes to `master` or manual dispatch. It publishes **only the generated synthetic standalone HTML**, not repository contents or collected assessment artifacts. Never publish real cluster reports to this public site. Opening a local assessment through the microsite reads it in your browser without uploading it.
 
 To generate your own synthetic artifacts without touching Azure:
 

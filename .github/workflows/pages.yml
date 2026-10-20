@@ -1,0 +1,50 @@
+name: Publish microsite to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check
+      - run: npm test
+      - run: npm run build:site
+      - name: Verify deterministic generated artifacts
+        run: git --no-pager diff --exit-code -- site/index.html examples/demo-evidence.json
+      - name: Stage only the synthetic standalone microsite
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/aks-xray-pages"
+          cp site/index.html "$RUNNER_TEMP/aks-xray-pages/index.html"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/aks-xray-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy microsite
+        id: deployment
+        uses: actions/deploy-pages@v4
