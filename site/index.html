@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="AKS X-Ray: evidence-first assessments for AKS and AKS on Azure Local, grounded in official Microsoft guidance.">
+  <meta name="description" content="Point-in-time configuration assessment and evidence review for AKS on Azure and AKS on Azure Local, mapped to official Microsoft guidance.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src data:; base-uri 'none'; form-action 'none'">
-  <title>AKS X-Ray | Evidence-first cluster diagnostics</title>
+  <title>AKS X-Ray | AKS configuration assessment</title>
   <script>
     (() => {
       const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
@@ -214,7 +214,7 @@ footer strong { color: var(--cp-text); }
 <body>
   <a class="skip-link" href="#main">Skip to assessment</a>
   <header class="masthead">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">X</span><div><strong>AKS X-RAY</strong><span>Evidence. Context. Clarity.</span></div></div>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">X</span><div><strong>AKS X-RAY</strong><span>Configuration assessment &amp; evidence</span></div></div>
     <div class="header-actions">
       <label class="button" for="import-file">Open assessment JSON</label>
       <input id="import-file" class="visually-hidden" type="file" accept=".json,application/json">
@@ -225,15 +225,15 @@ footer strong { color: var(--cp-text); }
   </header>
   <nav class="tabs" aria-label="Report sections">
     <button type="button" data-view="assessment" aria-pressed="true">Assessment</button>
-    <button type="button" data-view="catalog" aria-pressed="false">Test catalogue</button>
+    <button type="button" data-view="catalog" aria-pressed="false">Assessment controls</button>
     <button type="button" data-view="method" aria-pressed="false">Method &amp; sources</button>
   </nav>
   <main id="main">
     <div id="notification" class="notice" role="alert" hidden></div>
     <section class="hero">
-      <p class="eyebrow">CLUSTER DIAGNOSTICS / OFFICIAL MICROSOFT GUIDANCE</p>
-      <h1>Clarity starts with evidence.</h1>
-      <p class="lede">Inspect the configuration. Expose the gaps. Know what still needs to be proven.</p>
+      <p class="eyebrow">AKS / CONFIGURATION AND OPERATIONAL EVIDENCE</p>
+      <h1>AKS configuration assessment</h1>
+      <p class="lede">Compare observed cluster configuration with selected Microsoft guidance. Identify deviations, missing evidence, and areas requiring engineering review.</p>
       <div class="hero-meta"><span id="platform-label" class="pill"></span><span id="context-label"></span><span id="catalog-label"></span></div>
     </section>
 
@@ -241,12 +241,12 @@ footer strong { color: var(--cp-text); }
       <div id="report-banner" class="notice"></div>
       <div class="metric-grid">
         <article class="metric"><span>Observed deviations</span><strong id="metric-fail">-</strong><p>Configuration findings, not assumed incidents</p></article>
-        <article class="metric"><span>Verified alignment</span><strong id="metric-alignment">-</strong><p id="alignment-detail">Pass / (pass + fail), not a certification</p></article>
+        <article class="metric"><span>Pass rate (evaluated controls)</span><strong id="metric-alignment">-</strong><p id="alignment-detail">Pass / (pass + fail); excludes controls not evaluated</p></article>
         <article class="metric"><span>Evidence coverage</span><strong id="metric-coverage">-</strong><p>Complete pass/fail checks / all applicable checks</p></article>
-        <article class="metric"><span>Not yet proven</span><strong id="metric-unproven">-</strong><p>Review, unknown, error and not-run controls</p></article>
+        <article class="metric"><span>Open reviews and evidence gaps</span><strong id="metric-unproven">-</strong><p>Review, unknown, error and not-run controls</p></article>
       </div>
       <section class="panel scope-panel" aria-labelledby="scope-heading">
-        <div><p class="eyebrow">ASSESSMENT BOUNDARY</p><h2 id="scope-heading">A snapshot, not a guarantee.</h2><p id="scope-description"></p></div>
+        <div><p class="eyebrow">ASSESSMENT SCOPE</p><h2 id="scope-heading">Scope and collection time</h2><p id="scope-description"></p></div>
         <dl class="scope-facts">
           <div><dt>Target binding</dt><dd id="binding-value"></dd></div>
           <div><dt>Collected</dt><dd id="collected-value"></dd></div>
@@ -256,13 +256,13 @@ footer strong { color: var(--cp-text); }
         <div id="status-legend" class="legend"></div>
       </section>
       <div id="operational-alert" class="notice error-notice" hidden></div>
-      <section id="priorities" class="priority-grid" aria-label="Highest-priority deviations"></section>
+      <section id="priorities" class="priority-grid" aria-label="Highest-severity observed deviations"></section>
     </section>
 
     <section id="catalog-intro" class="panel" hidden>
-      <p class="eyebrow">MODULAR BY DESIGN</p>
-      <h2>One category, or the whole architecture.</h2>
-      <p>Every control states exactly what it can prove, its evidence dependencies, platform applicability and official Microsoft references. Manual controls remain reviews; active controls never run as a side effect of collection.</p>
+      <p class="eyebrow">CONTROL CATALOGUE</p>
+      <h2>Select categories for assessment.</h2>
+      <p>Each control documents its assertion, evidence dependencies, platform applicability, limitations, and Microsoft references. Manual controls require further evidence. Active controls run only with separate authorization.</p>
       <div class="planner">
         <label>Platform<select id="planner-platform"><option value="cloud">AKS on Azure</option><option value="local">AKS on Azure Local</option></select></label>
         <label>Assessment category<select id="planner-category"><option value="all">All categories</option></select></label>
@@ -280,7 +280,7 @@ footer strong { color: var(--cp-text); }
         <label>Category<select id="category-filter"><option value="all">All categories</option></select></label>
         <label id="status-filter-label">Result<select id="status-filter"><option value="all">All results</option></select></label>
         <label id="platform-filter-label" hidden>Platform<select id="platform-filter"><option value="all">Both platforms</option><option value="cloud">AKS on Azure</option><option value="local">AKS on Azure Local</option></select></label>
-        <label>Test mode<select id="mode-filter"><option value="all">All modes</option><option value="passive">Read-only</option><option value="manual">Manual review</option><option value="active">Opt-in active</option></select></label>
+        <label>Assessment mode<select id="mode-filter"><option value="all">All modes</option><option value="passive">Read-only</option><option value="manual">Manual review</option><option value="active">Opt-in active</option></select></label>
         <button id="reset-filters" type="button">Reset</button>
       </div>
       <div id="findings" class="findings"></div>
@@ -300,7 +300,7 @@ footer strong { color: var(--cp-text); }
           </dl>
         </article>
         <article class="panel">
-          <p class="eyebrow">SAFETY &amp; LIMITATIONS</p><h2>No hidden cluster changes.</h2>
+          <p class="eyebrow">COLLECTION AND TEST BOUNDARIES</p><h2>Read-only collection by default</h2>
           <ul class="spaced-list">
             <li>Default collection uses Azure read operations and Kubernetes get/list only. No login, credential download, context switch, secret reads, exec or apply.</li>
             <li>Inventory is projected before persistence. Secret values, kubeconfig credentials, environment values, application logs, commands, arbitrary annotations and event messages are not exported.</li>
@@ -312,12 +312,13 @@ footer strong { color: var(--cp-text); }
         </article>
       </div>
       <article class="panel method-panel">
-        <p class="eyebrow">SCORING WITHOUT FALSE CONFIDENCE</p><h2>Keep alignment separate from coverage.</h2>
-        <p>Alignment is pass / (pass + fail) and is suppressed when target binding is unverified. Coverage is complete pass/fail controls / all applicable controls, including manual reviews and not-run tests. A high alignment value with low coverage is not a healthy-cluster verdict. Production is the default recommendation profile; context-dependent tradeoffs are made explicit.</p>
+        <p class="eyebrow">RESULT METRICS</p><h2>Observed configuration and evidence coverage</h2>
+        <p>The pass rate is pass / (pass + fail) and is suppressed when target binding is unverified. Evidence coverage is complete pass/fail controls / all applicable controls, including manual reviews and not-run tests. Neither metric represents overall cluster health. The production profile is the default; apply recommendations in the context of the workload, platform, and documented design decisions.</p>
         <p>Collection is not an atomic snapshot: each source carries its own timestamp and command. Evidence and reports are versioned and paired with local SHA-256 hashes. Hashes detect changes; they do not authenticate the collector or certify the cluster. The paired evidence JSON contains the data behind each JSON pointer.</p>
         <p id="source-policy"></p>
+        <p><strong>Using guidance as a design baseline.</strong> Treat each recommendation as an engineering reference, not a universal requirement. Confirm current platform support and workload requirements; document applicability, accepted deviations, and compensating controls in the relevant architecture or operations record.</p>
       </article>
-      <div class="section-heading"><div><p class="eyebrow">FIRST-PARTY REFERENCE LIBRARY</p><h2>Microsoft guidance, traceable by control.</h2></div><span id="review-date"></span></div>
+      <div class="section-heading"><div><p class="eyebrow">DOCUMENTATION REFERENCES</p><h2>Microsoft Learn sources</h2></div><span id="review-date"></span></div>
       <div id="sources" class="source-grid"></div>
     </section>
   </main>
@@ -414,10 +415,10 @@ footer strong { color: var(--cp-text); }
     const applicable = report.results.length - count.notApplicable;
     const evaluated = count.pass + count.fail;
     const complete = report.results.filter((result) => ['pass', 'fail'].includes(result.status) && !result.incomplete).length;
-    const alignment = evaluated && report.target.binding.status === 'verified' ? `${Math.round(count.pass / evaluated * 100)}%` : 'Unverified';
+    const alignment = evaluated && report.target.binding.status === 'verified' ? `${Math.round(count.pass / evaluated * 100)}%` : 'N/A';
     byId('metric-fail').textContent = count.fail;
     byId('metric-alignment').textContent = alignment;
-    byId('alignment-detail').textContent = `Pass ${count.pass} / evaluated ${evaluated}. Not an overall health score.`;
+    byId('alignment-detail').textContent = `Pass ${count.pass} / ${evaluated} evaluated controls.`;
     byId('metric-coverage').textContent = applicable ? `${Math.round(complete / applicable * 100)}%` : 'N/A';
     byId('metric-unproven').textContent = count.review + count.unknown + count.error + count.notRun;
     byId('platform-label').textContent = report.target.platform === 'cloud' ? 'AKS ON AZURE' : 'AKS ON AZURE LOCAL';
@@ -429,8 +430,8 @@ footer strong { color: var(--cp-text); }
     byId('profile-value').textContent = report.scope.profile;
     byId('scope-description').textContent = `${report.scope.categories.length} categories. Namespaces: ${report.scope.namespaces?.join(', ') || 'all reachable'}; excluded: ${report.scope.excludedNamespaces.join(', ') || 'none'}. Per-source collection is not an atomic snapshot.`;
     byId('report-banner').textContent = report.synthetic
-      ? 'SYNTHETIC DEMO - fabricated sample inventory with intentional deviations. No Azure or Kubernetes connection was made. Open your assessment JSON to inspect real collected evidence.'
-      : 'POINT-IN-TIME EVIDENCE - no certification is implied. Review source timestamps, access gaps, intended exceptions and manual controls before making decisions.';
+      ? 'SYNTHETIC SAMPLE - example inventory and findings for demonstration. No Azure or Kubernetes cluster was queried. Open an assessment JSON file to view collected results.'
+      : 'POINT-IN-TIME ASSESSMENT - review source timestamps, collection errors, scope, and manual controls before using these results.';
     const bar = byId('status-bar');
     const legend = byId('status-legend');
     bar.replaceChildren();
@@ -458,7 +459,7 @@ footer strong { color: var(--cp-text); }
     byId('priorities').replaceChildren(...priorities.map((result) => {
       const control = controlById.get(result.id);
       const card = element('article', undefined, 'priority-card');
-      card.append(element('p', `${control.id} / ${control.severity.toUpperCase()} PRIORITY`, 'eyebrow'),
+      card.append(element('p', `${control.id} / ${control.severity.toUpperCase()} SEVERITY`, 'eyebrow'),
         element('h3', control.title), element('p', control.remediation));
       return card;
     }));
@@ -484,9 +485,9 @@ footer strong { color: var(--cp-text); }
     summary.append(metadata, status, element('h3', control.title), element('p', result?.message || control.assertion));
     const body = element('div', undefined, 'finding-body');
     const assertion = element('section');
-    assertion.append(element('h4', 'Exactly what is tested'), element('p', control.assertion));
+    assertion.append(element('h4', 'Assertion'), element('p', control.assertion));
     const remediation = element('section');
-    remediation.append(element('h4', 'Recommended next step'), element('p', control.remediation));
+    remediation.append(element('h4', 'Suggested follow-up'), element('p', control.remediation));
     const references = element('section');
     references.append(element('h4', 'Official Microsoft guidance'));
     const links = element('ul');
@@ -497,12 +498,12 @@ footer strong { color: var(--cp-text); }
     }
     references.append(links);
     const boundary = element('section');
-    boundary.append(element('h4', 'Evidence boundary'), element('p',
+    boundary.append(element('h4', 'Scope and dependencies'), element('p',
       `Platforms: ${control.platforms.join(', ')}. Mode: ${modeLabels[control.mode]}. ${control.productionOnly ? 'Production profile only. ' : ''}Dependencies: ${control.requires.join(', ') || 'independent operational evidence'}.`));
     body.append(assertion, remediation, references, boundary);
     if (result) {
       const observed = element('section', undefined, 'observation');
-      observed.append(element('h4', 'Observed evidence & collection provenance'));
+      observed.append(element('h4', 'Observed evidence and collection provenance'));
       if (result.classification) observed.append(element('p', `Classification: ${result.classification}${result.incomplete ? ' | Partial evidence: unresolved observations remain.' : ''}`));
       const text = JSON.stringify({ observed: result.observed ?? null, evidence: result.evidence }, null, 2);
       observed.append(element('pre', text));
@@ -533,8 +534,8 @@ footer strong { color: var(--cp-text); }
     byId('findings').replaceChildren(...filtered.map((control) => findingCard(control, view === 'catalog' ? undefined : results.get(control.id))));
     byId('result-count').textContent = `${filtered.length} of ${available.length} controls`;
     byId('empty-state').hidden = filtered.length > 0;
-    byId('results-title').textContent = view === 'catalog' ? 'The complete test catalogue' : 'Findings & open questions';
-    byId('results-eyebrow').textContent = view === 'catalog' ? 'CONTROL SPECIFICATIONS' : 'EVIDENCE REGISTER';
+    byId('results-title').textContent = view === 'catalog' ? 'Assessment control catalogue' : 'Findings and open reviews';
+    byId('results-eyebrow').textContent = view === 'catalog' ? 'ASSESSMENT CONTROLS' : 'EVIDENCE REGISTER';
   }
 
   function switchView(next) {

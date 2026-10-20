@@ -88,10 +88,10 @@
     const applicable = report.results.length - count.notApplicable;
     const evaluated = count.pass + count.fail;
     const complete = report.results.filter((result) => ['pass', 'fail'].includes(result.status) && !result.incomplete).length;
-    const alignment = evaluated && report.target.binding.status === 'verified' ? `${Math.round(count.pass / evaluated * 100)}%` : 'Unverified';
+    const alignment = evaluated && report.target.binding.status === 'verified' ? `${Math.round(count.pass / evaluated * 100)}%` : 'N/A';
     byId('metric-fail').textContent = count.fail;
     byId('metric-alignment').textContent = alignment;
-    byId('alignment-detail').textContent = `Pass ${count.pass} / evaluated ${evaluated}. Not an overall health score.`;
+    byId('alignment-detail').textContent = `Pass ${count.pass} / ${evaluated} evaluated controls.`;
     byId('metric-coverage').textContent = applicable ? `${Math.round(complete / applicable * 100)}%` : 'N/A';
     byId('metric-unproven').textContent = count.review + count.unknown + count.error + count.notRun;
     byId('platform-label').textContent = report.target.platform === 'cloud' ? 'AKS ON AZURE' : 'AKS ON AZURE LOCAL';
@@ -103,8 +103,8 @@
     byId('profile-value').textContent = report.scope.profile;
     byId('scope-description').textContent = `${report.scope.categories.length} categories. Namespaces: ${report.scope.namespaces?.join(', ') || 'all reachable'}; excluded: ${report.scope.excludedNamespaces.join(', ') || 'none'}. Per-source collection is not an atomic snapshot.`;
     byId('report-banner').textContent = report.synthetic
-      ? 'SYNTHETIC DEMO - fabricated sample inventory with intentional deviations. No Azure or Kubernetes connection was made. Open your assessment JSON to inspect real collected evidence.'
-      : 'POINT-IN-TIME EVIDENCE - no certification is implied. Review source timestamps, access gaps, intended exceptions and manual controls before making decisions.';
+      ? 'SYNTHETIC SAMPLE - example inventory and findings for demonstration. No Azure or Kubernetes cluster was queried. Open an assessment JSON file to view collected results.'
+      : 'POINT-IN-TIME ASSESSMENT - review source timestamps, collection errors, scope, and manual controls before using these results.';
     const bar = byId('status-bar');
     const legend = byId('status-legend');
     bar.replaceChildren();
@@ -132,7 +132,7 @@
     byId('priorities').replaceChildren(...priorities.map((result) => {
       const control = controlById.get(result.id);
       const card = element('article', undefined, 'priority-card');
-      card.append(element('p', `${control.id} / ${control.severity.toUpperCase()} PRIORITY`, 'eyebrow'),
+      card.append(element('p', `${control.id} / ${control.severity.toUpperCase()} SEVERITY`, 'eyebrow'),
         element('h3', control.title), element('p', control.remediation));
       return card;
     }));
@@ -158,9 +158,9 @@
     summary.append(metadata, status, element('h3', control.title), element('p', result?.message || control.assertion));
     const body = element('div', undefined, 'finding-body');
     const assertion = element('section');
-    assertion.append(element('h4', 'Exactly what is tested'), element('p', control.assertion));
+    assertion.append(element('h4', 'Assertion'), element('p', control.assertion));
     const remediation = element('section');
-    remediation.append(element('h4', 'Recommended next step'), element('p', control.remediation));
+    remediation.append(element('h4', 'Suggested follow-up'), element('p', control.remediation));
     const references = element('section');
     references.append(element('h4', 'Official Microsoft guidance'));
     const links = element('ul');
@@ -171,12 +171,12 @@
     }
     references.append(links);
     const boundary = element('section');
-    boundary.append(element('h4', 'Evidence boundary'), element('p',
+    boundary.append(element('h4', 'Scope and dependencies'), element('p',
       `Platforms: ${control.platforms.join(', ')}. Mode: ${modeLabels[control.mode]}. ${control.productionOnly ? 'Production profile only. ' : ''}Dependencies: ${control.requires.join(', ') || 'independent operational evidence'}.`));
     body.append(assertion, remediation, references, boundary);
     if (result) {
       const observed = element('section', undefined, 'observation');
-      observed.append(element('h4', 'Observed evidence & collection provenance'));
+      observed.append(element('h4', 'Observed evidence and collection provenance'));
       if (result.classification) observed.append(element('p', `Classification: ${result.classification}${result.incomplete ? ' | Partial evidence: unresolved observations remain.' : ''}`));
       const text = JSON.stringify({ observed: result.observed ?? null, evidence: result.evidence }, null, 2);
       observed.append(element('pre', text));
@@ -207,8 +207,8 @@
     byId('findings').replaceChildren(...filtered.map((control) => findingCard(control, view === 'catalog' ? undefined : results.get(control.id))));
     byId('result-count').textContent = `${filtered.length} of ${available.length} controls`;
     byId('empty-state').hidden = filtered.length > 0;
-    byId('results-title').textContent = view === 'catalog' ? 'The complete test catalogue' : 'Findings & open questions';
-    byId('results-eyebrow').textContent = view === 'catalog' ? 'CONTROL SPECIFICATIONS' : 'EVIDENCE REGISTER';
+    byId('results-title').textContent = view === 'catalog' ? 'Assessment control catalogue' : 'Findings and open reviews';
+    byId('results-eyebrow').textContent = view === 'catalog' ? 'ASSESSMENT CONTROLS' : 'EVIDENCE REGISTER';
   }
 
   function switchView(next) {

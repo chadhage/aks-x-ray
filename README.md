@@ -1,8 +1,8 @@
 # AKS X-Ray
 
-**Evidence-first diagnostics for Azure Kubernetes Service and AKS enabled by Azure Arc on Azure Local.**
+Configuration and evidence assessment for Azure Kubernetes Service and AKS enabled by Azure Arc on Azure Local.
 
-Clone the repository, point the CLI at an **explicit Azure target and Kubernetes context**, and produce a private, standalone microsite with the evidence behind each finding.
+The toolkit compares observed configuration with selected Microsoft guidance for an **explicit Azure target and Kubernetes context**, then produces a standalone microsite and machine-readable evidence.
 
 The initial catalogue contains **71 controls across 15 architectural categories**, grounded in **20 official Microsoft Learn references** reviewed on **2026-10-20**. It distinguishes:
 
@@ -11,13 +11,13 @@ The initial catalogue contains **71 controls across 15 architectural categories*
 - Configuration conflicts and missing declarations.
 - Evidence gaps, collection errors and controls that need human/operational review.
 
-**This is not a Microsoft product, compliance certification, exhaustive vulnerability scanner, or a guarantee that a cluster is healthy.** Broad architectural coverage includes explicit manual assessments where static inventory cannot establish a defensible conclusion. Active suites are bounded synthetic validation, not destructive stress testing or exploitation.
+Outputs are point-in-time engineering evidence, not a Microsoft product, compliance certification, exhaustive vulnerability scan, or conclusion that a cluster is healthy. Manual assessments identify where static inventory is insufficient. Active suites provide bounded synthetic validation; they are not a replacement for workload-specific performance testing or an authorized penetration test.
 
-## Start with the microsite
+## Microsite
 
 **Published microsite:** [chadhage.github.io/aks-x-ray](https://chadhage.github.io/aks-x-ray/).
 
-Open [site/index.html](site/index.html) directly in a browser. No web server, account, build, CDN or package installation is needed. It includes a clearly labelled synthetic report, the complete test catalogue, category/platform filters, a command builder, methodology and Microsoft source links.
+Open [site/index.html](site/index.html) directly in a browser. It includes a labelled synthetic report, the assessment-control catalogue, category and platform filters, a command builder, methodology, and Microsoft Learn references.
 
 The [Pages workflow](.github/workflows/pages.yml) validates and rebuilds the site on pushes to `master` or manual dispatch. It publishes **only the generated synthetic standalone HTML**, not repository contents or collected assessment artifacts. Never publish real cluster reports to this public site. Opening a local assessment through the microsite reads it in your browser without uploading it.
 
