@@ -1,5 +1,5 @@
 import { binding } from './collector.mjs';
-import { inScope, workloadSources } from './projection.mjs';
+import { inScope, isObject, namespacedSources, workloadSources } from './projection.mjs';
 import { cidr, compareQuantities, contains, matchesSelector, overlaps, percentile, quantity } from './quantities.mjs';
 
 const outcome = (status, message, observed = {}) => ({ status, message, observed });
@@ -80,6 +80,69 @@ function resourceCheck(evidence, group) {
 
 function namespaceCheck(evidence, predicate, description) {
   return checkAll(activeNamespaces(evidence), predicate, description, 'No selected workload namespaces were observed.');
+}
+
+function dependencyCheck(evidence, type, predicate, description) {
+  const compared = items(evidence, 'relatedResources').filter((item) => item.type.toLowerCase() === type)
+    .map((item) => ({ ...item, verdict: predicate(item.configuration) }));
+  const result = checkAll(compared, (item) => isObject(item.verdict) ? item.verdict.valid : item.verdict, description);
+  const gaps = compared.filter((item) => isObject(item.verdict) && item.verdict.gaps.length)
+    .map((item) => ({ resourceId: item.id, settings: item.verdict.gaps }));
+  if (gaps.length) {
+    result.incomplete = true;
+    result.observed.fieldGaps = gaps;
+    result.message += ' Companion settings are unavailable; known deviations remain visible, but this control is unscored.';
+  }
+  return result;
+}
+
+function declaredSettings(settings) {
+  const values = Object.values(settings);
+  return {
+    valid: values.includes(false) ? false : values.includes(null) ? null : true,
+    gaps: Object.keys(settings).filter((key) => settings[key] === null)
+  };
+}
+
+function sensitiveRule(rule) {
+  if (!Array.isArray(rule.verbs) || !Array.isArray(rule.apiGroups)) return null;
+  if (!Array.isArray(rule.resources)) return Array.isArray(rule.nonResourceURLs) ? false : null;
+  const group = (value) => rule.apiGroups.includes('*') || rule.apiGroups.includes(value);
+  const resource = (values) => rule.resources.includes('*') || values.some((value) => rule.resources.includes(value));
+  const verb = (values) => rule.verbs.includes('*') || values.some((value) => rule.verbs.includes(value));
+  return group('') && (resource(['secrets']) && verb(['get', 'list', 'watch'])
+    || resource(['pods/exec', 'pods/attach', 'pods/portforward', 'nodes/proxy', 'serviceaccounts/token']) && verb(['create', 'get'])
+    || resource(['users', 'groups', 'serviceaccounts']) && verb(['impersonate']))
+    || group('rbac.authorization.k8s.io') && (resource(['roles', 'clusterroles']) && verb(['bind', 'escalate'])
+      || resource(['rolebindings', 'clusterrolebindings']) && verb(['create', 'update', 'patch']));
+}
+
+function managementRuleSafe(rule) {
+  if (!['Inbound', 'Outbound'].includes(rule.direction) || !['Allow', 'Deny'].includes(rule.access)
+    || !['Tcp', 'Udp', 'Icmp', 'Esp', 'Ah', '*'].includes(rule.protocol)) return null;
+  if (rule.direction !== 'Inbound' || rule.access !== 'Allow' || !['Tcp', '*'].includes(rule.protocol)) return true;
+  const sources = rule.sourceAddressPrefixes ?? (typeof rule.sourceAddressPrefix === 'string' ? [rule.sourceAddressPrefix] : null);
+  if (!sources) return null;
+  const world = sources.map((source) => {
+    if (typeof source !== 'string') return null;
+    if (['*', 'internet'].includes(source.toLowerCase())) return true;
+    if (/^[0-9a-f:.]+\/\d+$/i.test(source)) return cidr(source).prefix === 0;
+    return source.includes('/') ? null : false;
+  });
+  if (!world.includes(true)) return world.includes(null) ? null : true;
+  const ports = rule.destinationPortRanges ?? (typeof rule.destinationPortRange === 'string' ? [rule.destinationPortRange] : null);
+  if (!ports) return null;
+  let unknown = false;
+  for (const port of ports) {
+    if (port === '*') return false;
+    const match = /^(\d+)(?:-(\d+))?$/.exec(port);
+    if (!match) { unknown = true; continue; }
+    const start = Number(match[1]);
+    const end = Number(match[2] ?? match[1]);
+    if (start > end || end > 65535) { unknown = true; continue; }
+    if ([22, 3389].some((value) => value >= start && value <= end)) return false;
+  }
+  return unknown ? null : true;
 }
 
 function pbdCount(value, total) {
@@ -393,6 +456,137 @@ export function evaluateRule(id, evidence) {
       return outcome(data.denied && data.reason === 'restricted-pod-security' ? 'pass' : 'fail',
         'Restricted Pod Security Admission in the synthetic namespace only; no exploitation was attempted.', data);
     }
+    case 'CP-004': {
+      const scenario = evidence.scope.scenario;
+      if (!scenario) return outcome('notApplicable', 'No intended API-access scenario was supplied.');
+      const profile = cluster.apiServerAccessProfile;
+      if (typeof profile?.enablePrivateCluster !== 'boolean') return outcome('unknown', 'Private API enablement was not explicitly observed.');
+      if (scenario.apiAccess === 'private') return flag(profile.enablePrivateCluster, 'Scenario requires a private API endpoint.');
+      if (profile.enablePrivateCluster) return outcome(scenario.apiAccess === 'either' ? 'pass' : 'fail', 'Compared private API configuration with the intended access scenario.');
+      const ranges = profile.authorizedIpRanges ?? profile.authorizedIPRanges;
+      if (!Array.isArray(ranges)) return outcome('unknown', 'A complete authorized-IP list was not observed.');
+      return outcome(ranges.length && ranges.every((range) => cidr(range).prefix > 0) ? 'pass' : 'fail',
+        'Scenario requires a restricted public API; effective network reachability was not tested.', { ranges });
+    }
+    case 'REL-006':
+      return evidence.scope.scenario
+        ? checkAll(services(evidence), (workload) => workload.replicas >= evidence.scope.scenario.minimumReplicas,
+          `Scenario requires at least ${evidence.scope.scenario.minimumReplicas} declared replicas.`)
+        : outcome('notApplicable', 'No scenario-specific replica requirement was supplied.');
+    case 'REL-007':
+      if (!evidence.scope.scenario) return outcome('notApplicable', 'No scenario-specific zone requirement was supplied.');
+      if (automatic(evidence)) return outcome('review', 'Service-managed Automatic zone placement requires independent evidence.');
+      return checkAll(items(evidence, 'nodepools'), (pool) => Array.isArray(pool.availabilityZones)
+        ? new Set(pool.availabilityZones).size >= evidence.scope.scenario.minimumZones : null,
+      `Scenario requires at least ${evidence.scope.scenario.minimumZones} declared zones.`);
+    case 'SEC-011':
+      return linuxCheck(evidence, ({ container }) => container.securityContext?.readOnlyRootFilesystem === true, 'Read-only Linux root filesystem declarations.');
+    case 'SEC-012': {
+      const accounts = scoped(evidence, 'serviceaccounts');
+      return checkAll(workloads(evidence), (workload) => {
+        const spec = workload.pod.spec;
+        if (typeof spec.automountServiceAccountToken === 'boolean') return spec.automountServiceAccountToken === false;
+        const account = accounts.find((item) => item.metadata.namespace === workload.metadata.namespace
+          && item.metadata.name === (spec.serviceAccountName || 'default'));
+        if (!account) return null;
+        if (account.automountServiceAccountToken === undefined) return false;
+        return typeof account.automountServiceAccountToken === 'boolean' ? account.automountServiceAccountToken === false : null;
+      }, 'Effective automatic Kubernetes API-token mount declarations; necessary API consumers require owner exceptions.');
+    }
+    case 'SEC-013': {
+      const webhooks = ['validatingwebhooks', 'mutatingwebhooks'].flatMap((id) => items(evidence, id)
+        .flatMap((configuration) => (configuration.webhooks ?? []).map((webhook) => ({
+          ...webhook, metadata: { name: `${configuration.metadata.name}/${webhook.name}` }
+        })))).filter((webhook) => !Array.isArray(webhook.rules) || webhook.rules.some((rule) =>
+        rule.apiGroups?.some((group) => ['', '*'].includes(group))
+        && rule.resources?.some((resource) => ['pods', '*', '*/*', 'pods/*'].includes(resource))
+        && rule.operations?.some((operation) => ['CREATE', 'UPDATE', '*'].includes(operation))));
+      return checkAll(webhooks, (webhook) => Array.isArray(webhook.rules)
+        ? (webhook.failurePolicy ?? 'Fail') === 'Fail' : null,
+      'Fail-closed declarations on observed pod-admission webhooks, not effective enforcement or webhook availability.');
+    }
+    case 'SEC-014':
+      return checkAll(items(evidence, 'defenderPricing'), (plan) => typeof plan.pricingTier === 'string'
+        ? plan.pricingTier === 'Standard' : null, 'Defender for Containers subscription plan declaration.');
+    case 'SEC-015': {
+      const assessments = items(evidence, 'defenderAssessments');
+      if (!assessments.length) return outcome('review', 'No scoped Defender assessments were returned; coverage and scan freshness require review.');
+      return checkAll(assessments.filter((assessment) => assessment.status?.code !== 'NotApplicable'),
+        (assessment) => assessment.status?.code === 'Healthy' ? true : assessment.status?.code === 'Unhealthy' ? false : null,
+        'Observed scoped Defender assessment states, not independent vulnerability or runtime verification.');
+    }
+    case 'SEC-016': {
+      const allowed = evidence.scope.scenario?.allowedRegistries;
+      if (!allowed?.length) return outcome('notApplicable', 'No scenario-approved registry list was supplied.');
+      return checkAll(containerEntries(evidence), ({ container }) => {
+        if (typeof container.image !== 'string' || !container.image.length) return null;
+        const first = container.image.split('/')[0];
+        const registry = container.image.includes('/') && (first.includes('.') || first.includes(':') || first === 'localhost') ? first : 'docker.io';
+        return allowed.includes(registry.toLowerCase());
+      }, 'Scenario-approved image registry hosts; image content and pull authorization were not tested.');
+    }
+    case 'ID-008': {
+      const bindings = [...items(evidence, 'clusterrolebindings'), ...scoped(evidence, 'rolebindings')];
+      const broad = bindings.filter((binding) => (binding.subjects ?? []).some((subject) =>
+        subject.kind === 'User' && subject.name === 'system:anonymous'
+        || subject.kind === 'Group' && (['system:authenticated', 'system:unauthenticated', 'system:serviceaccounts'].includes(subject.name)
+          || subject.name?.startsWith('system:serviceaccounts:'))));
+      if (!broad.length) return outcome('pass', 'No observed broad subject was granted sensitive Kubernetes capabilities.', { bindings: bindings.length });
+      return checkAll(broad, (binding) => {
+        if (binding.roleRef?.kind === 'ClusterRole' && binding.roleRef.name === 'cluster-admin') return false;
+        const role = binding.roleRef?.kind === 'ClusterRole'
+          ? items(evidence, 'clusterroles').find((role) => role.metadata.name === binding.roleRef.name)
+          : scoped(evidence, 'roles').find((role) => role.metadata.name === binding.roleRef?.name && role.metadata.namespace === binding.metadata.namespace);
+        if (!Array.isArray(role?.rules)) return null;
+        const sensitive = role.rules.map(sensitiveRule);
+        return sensitive.includes(true) ? false : sensitive.includes(null) ? null : true;
+      }, 'Broad Kubernetes subjects and observed sensitive role declarations; no identity impersonation or exploitation was attempted.');
+    }
+    case 'GOV-004': {
+      const states = items(evidence, 'policyStates');
+      if (!states.length) return outcome('review', 'No policy states were returned; assignments, coverage and evaluation recency require review.');
+      if (states.some((state) => state.complianceState === 'Exempt') && !states.some((state) => state.complianceState === 'NonCompliant')) {
+        return outcome('review', 'Policy exemptions require owner approval and compensating-control review.', observedList(states));
+      }
+      return checkAll(states, (state) => state.complianceState === 'Compliant' ? true : state.complianceState === 'NonCompliant' ? false : null,
+        'Observed scoped policy compliance states. Collection did not trigger evaluation.');
+    }
+    case 'GOV-005':
+      return namespaceCheck(evidence, (namespace) => {
+        const item = items(evidence, 'namespaces').find((item) => item.metadata.name === namespace);
+        return item ? item.metadata.labels?.['pod-security.kubernetes.io/enforce'] === 'restricted' : null;
+      }, 'Restricted Pod Security Admission namespace-label declarations, not tested enforcement.');
+    case 'DEP-001':
+      return dependencyCheck(evidence, 'microsoft.containerregistry/registries',
+        (value) => typeof value.adminUserEnabled === 'boolean' ? value.adminUserEnabled === false : null,
+        'Registry administrator-account configuration.');
+    case 'DEP-002':
+      return dependencyCheck(evidence, 'microsoft.keyvault/vaults', (value) => declaredSettings({
+        enableSoftDelete: typeof value.enableSoftDelete === 'boolean' ? value.enableSoftDelete : null,
+        enablePurgeProtection: typeof value.enablePurgeProtection === 'boolean' ? value.enablePurgeProtection : null
+      }), 'Vault soft-delete and purge-protection declarations.');
+    case 'DEP-003':
+      return dependencyCheck(evidence, 'microsoft.storage/storageaccounts', (value) => {
+        const tls = /^TLS(\d+)_(\d+)$/.exec(value.minimumTlsVersion);
+        return declaredSettings({
+          supportsHttpsTrafficOnly: typeof value.supportsHttpsTrafficOnly === 'boolean' ? value.supportsHttpsTrafficOnly : null,
+          allowBlobPublicAccess: typeof value.allowBlobPublicAccess === 'boolean' ? !value.allowBlobPublicAccess : null,
+          minimumTlsVersion: tls ? Number(tls[1]) > 1 || Number(tls[1]) === 1 && Number(tls[2]) >= 2 : null
+        });
+      }, 'Storage secure-transfer, minimum TLS and anonymous-blob-access configuration.');
+    case 'DEP-004':
+      return dependencyCheck(evidence, 'microsoft.network/networksecuritygroups', (value) => {
+        if (!Array.isArray(value.securityRules)) return null;
+        return declaredSettings(Object.fromEntries(value.securityRules.map((rule, index) =>
+          [`${index}:${rule.name ?? 'rule'}`, managementRuleSafe(rule)])));
+      }, 'Declared Internet-wide SSH/RDP NSG allow rules, not effective reachability.');
+    case 'DEP-005':
+      return dependencyCheck(evidence, 'microsoft.network/virtualnetworks/subnets',
+        (value) => typeof value.networkSecurityGroupId === 'string' && value.networkSecurityGroupId.length > 0,
+        'Subnet NSG-association declarations.');
+    case 'DEP-006':
+      return dependencyCheck(evidence, 'microsoft.keyvault/vaults',
+        (value) => typeof value.enableRbacAuthorization === 'boolean' ? value.enableRbacAuthorization : null, 'Key Vault Entra RBAC declaration.');
     default: throw new Error(`Missing automated evaluator: ${id}`);
   }
 }
@@ -405,6 +599,8 @@ export function manualObservation(control, evidence) {
       observed.cluster = evidence.sources.cluster.data;
       continue;
     }
+    if (namespacedSources.has(id)) values = scoped(evidence, id);
+    if (id === 'namespaces') values = values.filter((item) => inScope(item.metadata.name, evidence.scope));
     if (id === 'clusterrolebindings') values = values.filter((binding) => binding.roleRef?.name === 'cluster-admin');
     if (id === 'events') values = values.filter((event) => event.type === 'Warning');
     observed[id] = observedList(values);

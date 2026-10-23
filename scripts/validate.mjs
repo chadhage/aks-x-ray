@@ -44,7 +44,8 @@ for (const resource of Object.values(kubernetesResources)) {
 }
 const css = await readFile(join(root, 'site', 'styles.css'), 'utf8');
 const components = css.slice(css.indexOf('* {'));
-if (/#[0-9a-f]{3,8}\b|(?:rgba?|hsla?)\(/i.test(components) || /@import|url\(/i.test(css)) {
+const diagnosisCss = await readFile(join(root, 'site', 'diagnosis.css'), 'utf8');
+if (/#[0-9a-f]{3,8}\b|(?:rgba?|hsla?)\(/i.test(`${components}\n${diagnosisCss}`) || /@import|url\(/i.test(`${css}\n${diagnosisCss}`)) {
   throw new Error('Component styles must use Clawpilot theme variables and no remote assets.');
 }
 console.log(`Validated syntax, JSON, read-only RBAC coverage, theme and catalogue: ${counts.controls} controls, ${counts.categories} categories, ${counts.sources} Microsoft sources.`);

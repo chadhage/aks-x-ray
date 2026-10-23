@@ -1,17 +1,20 @@
 # Assessment methodology
 
+For the new graph/risk-first engine, see [diagnosis methodology and reconciliation](diagnosis.md). The existing catalogue, assertion statuses and higher-is-better adherence rubric below remain the optional `configuration` strategy. They are not the organizing model or risk scale of a diagnosis.
+
 ## Evidence pipeline
 
-1. Require an explicit platform, subscription, resource group, cluster and kubeconfig context.
-2. Read only the context's HTTPS server URL, never the complete kubeconfig or credentials.
-3. Read the named ARM cluster through `az aks show` or `az aksarc show`.
-4. Compare its documented endpoint with the context hostname. A mismatch stops additional collection and blocks unrelated conclusions. An unsupported alias/proxy or unavailable ARM endpoint remains unverified; there is no bypass that converts it into verified evidence.
-5. Resolve the selected controls' dependencies and collect each resource independently with at most three collector workers.
-6. Project allowlisted assessment fields before persistence. Keep resource-specific errors instead of treating them as empty resource lists.
-7. Evaluate explicit assertions, preserving observation timestamps, JSON pointers and commands.
-8. Write JSON, Markdown, a standalone HTML report and SHA-256 hashes.
+1. For `audit`, validate the invoker's tenant, subscription allowlist, targets, strategies, read-only approval and intended scenario before any external command. Legacy `collect` requires an explicit platform, subscription, resource group, cluster and context.
+2. Verify each listed subscription's enabled CLI account metadata against the explicit tenant before reading target inventory. Only the separate `login` command performs device authentication.
+3. When Kubernetes collection is authorized, read only the context's HTTPS server URL, never complete kubeconfig or credentials.
+4. Read the named ARM cluster through `az aks show` or `az aksarc show` and compare its exact resource ID with the named subscription/resource-group/cluster target.
+5. Compare its documented endpoint with the context hostname. A mismatch stops additional collection and blocks unrelated conclusions. An unsupported alias/proxy or unavailable ARM endpoint remains unverified; there is no bypass that converts it into verified evidence. With no Kubernetes authorization, tenant/account/ARM checks can establish an explicitly labelled `arm-only` binding, not a cross-plane binding.
+6. Resolve selected control dependencies and authorized supplemental sources. Withheld strategies issue no commands and become explicit `notRun` gaps. Collect with at most three workers; traverse approved dependency references serially with deduplication and the configured resource cap.
+7. Project allowlisted assessment fields before persistence. Keep resource-specific errors and successful partial dependency metadata instead of treating failures as empty resource lists.
+8. Evaluate explicit assertions, preserving observation timestamps, JSON pointers and commands. Reevaluate namespaced controls separately for each selected or observed namespace.
+9. Compute documented 1-100/null scores and write JSON, Markdown, a standalone HTML report and SHA-256 hashes. Multi-target audits additionally write a fleet index.
 
-Matching endpoint hostnames helps detect inventory from different clusters. It is **not cryptographic proof of cluster identity**. Existing kubeconfig trust, DNS, Azure authentication and endpoint certificates remain prerequisites.
+Matching endpoint hostnames and CLI account metadata helps detect inventory from different targets. It is **not cryptographic proof of cluster identity or tenant ownership**. Existing kubeconfig trust, DNS, current Azure authentication, delegated-access design and endpoint certificates remain prerequisites.
 
 ## Status contract
 
@@ -23,7 +26,7 @@ Matching endpoint hostnames helps detect inventory from different clusters. It i
 | `unknown` | Required evidence or API fields are unavailable | No |
 | `error` | Evaluation or an active measurement could not complete validly | No |
 | `notApplicable` | Platform, profile or observed resource set excludes the check | No; excluded from applicable-control denominator |
-| `notRun` | Active test deliberately not executed | No; included as an applicable evidence gap |
+| `notRun` | A required collection strategy or active test was deliberately not authorized | No; included as an applicable evidence gap |
 
 A partially observed control can report a known failure while also setting `incomplete=true`. It is then excluded from complete evidence coverage and produces exit code 2. A known failure can be investigated even when some observations are unavailable.
 
@@ -43,6 +46,24 @@ Cloud guidance is not automatically a Local requirement. Cloud-only controls are
 - Evidence coverage: complete pass/fail controls divided by **all applicable controls**, including reviews, unknowns, errors and not-run active tests.
 - Neither number is a security/compliance/availability score. Read them alongside the actual scope and evidence gaps.
 
+### Project-defined 1-100 configuration rubric
+
+This rubric is not an official Microsoft or Azure WAF assessment score, CVSS, exploitability estimate, certification or overall health verdict.
+
+- Only complete `pass`/`fail` assertions on a verified target receive a number. `review`, `unknown`, `error`, `notApplicable`, `notRun`, partial results and unverified/mismatched targets have `score: null`.
+- A scalar pass scores **100** and scalar failure **1**, never zero.
+- When a control has complete checked/deviation counts, its score is `round(1 + 99 * (checked - deviations) / checked)`. For example, two adherent observations out of three score **67**. Counts are validated rather than silently clamped.
+- Aggregate scores are rounded weighted means of scored controls, not of individual pods: **high=5, medium=3, low=1, info=1**. The overall score counts each control once. A control may contribute to more than one WAF pillar, but is not duplicated within a pillar.
+- Every aggregate also reports applicable, scored and unscored counts, control IDs and `coveragePercent = round(scored / applicable * 100)`. No applicable/scored observations produces `null`, not a default healthy result.
+- Area-to-pillar mappings are explicit in [the category catalogue](../catalog/categories.json). The five pillars are reliability, security, cost optimization, operational excellence and performance efficiency.
+- Namespace groups rerun namespaced assertions against that namespace's evidence. A failure in one namespace is not copied into every namespace. Purely global controls are excluded; namespace checks may still need global roles, policy engines or node OS evidence.
+- A known failing dependency can remain `fail, incomplete=true` when companion settings are missing. Its field gaps are retained, and it is unscored.
+- The CLI validator and offline browser use the same scoring runtime and recompute individual, area, pillar and namespace scores. Imported score edits or omitted namespace controls are rejected.
+
+A score of 100 with low coverage says only that the **scored subset** met those assertions. It can coexist with unscored high-risk reviews or critical evidence gaps. Always read severity, actual findings, scope and coverage together. Unsupported resource types and additional settings remain explicit dependency review, not invented numeric judgments.
+
+Audits record scenario-specific API intent, replica and zone thresholds, and optional approved registry hosts. These are operator requirements, not generic Microsoft workload SLOs. Omitted optional thresholds use documented production/development defaults; explicit nulls and typos are rejected.
+
 An empty list can make a workload-specific check not applicable; it cannot establish adherence. Empty node lists fail readiness. Absent API fields are not inferred false or true merely to obtain a verdict. Collection errors are preserved even when other categories succeed.
 
 ## Data handling
@@ -56,6 +77,9 @@ Artifacts contain private cluster inventory. POSIX creation modes are restrictiv
 ## Reproducibility and limitations
 
 - Sources have individual timestamps. The cluster can change during or after collection.
+- Device login is explicit and terminal-only; Conditional Access can deny device flow. Authentication errors never trigger fallback credentials, context switching or broader scope.
+- Dependency traversal is limited to allowlisted ARM references plus invoker-supplied IDs. It does not infer every application connection, secret-backed reference, peering relationship, external SaaS dependency or data-plane setting. Unapproved subscription references and resource caps are errors.
+- Defender and Advisor CLI reads may enumerate metadata within the explicitly approved subscriptions before filtering to target/dependency IDs. Policy collection queries the target only. No new scans, recommendations or remediation are triggered.
 - Kubernetes object defaults are used only where the API defines them, such as an omitted Deployment replica count of one.
 - Full policy unions, cloud effective routes, private DNS, admission assignments, federation, CVEs, log ingestion, backups and application semantics are not inferred from enablement flags.
 - The catalogue digest covers categories, assertions and source metadata. Keep the matching repository revision to reassess saved evidence.

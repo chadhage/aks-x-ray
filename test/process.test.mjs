@@ -36,3 +36,15 @@ test('exported command diagnostics identify failure classes without retaining st
   assert.equal(failure.code, 'FORBIDDEN');
   assert.ok(!JSON.stringify(failure).includes('DO_NOT_EXPORT'));
 });
+
+test('process runner supports per-command authentication environment and inherited interactive IO without retaining codes', async () => {
+  const before = process.env.AKS_XRAY_TEST_AUTH_SETTING;
+  const response = await runCommand(process.execPath, ['-e', 'process.stdout.write(process.env.AKS_XRAY_TEST_AUTH_SETTING ?? "missing")'],
+    { env: { AKS_XRAY_TEST_AUTH_SETTING: 'scoped-only' } });
+  assert.equal(response.stdout, 'scoped-only');
+  assert.equal(process.env.AKS_XRAY_TEST_AUTH_SETTING, before);
+  const interactive = await runCommand(process.execPath, ['-e', 'process.exit(0)'], { interactive: true });
+  assert.equal(interactive.stdout, '');
+  assert.equal(interactive.stderr, '');
+  await assert.rejects(() => runCommand(process.execPath, [], { interactive: true, input: 'not-allowed' }), /interactive.*input/i);
+});

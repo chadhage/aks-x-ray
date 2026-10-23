@@ -1,6 +1,6 @@
 {
   "name": "aks-x-ray",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Collect and assess AKS and AKS on Azure Local configuration; write HTML and JSON reports.",
   "type": "module",

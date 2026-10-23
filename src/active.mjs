@@ -8,6 +8,7 @@ import { projectSource } from './projection.mjs';
 import { CommandError, commandFailure, invocation, runCommand } from './process.mjs';
 import { loadStatistics } from './rules.mjs';
 import { sourceCatalog } from './catalog.mjs';
+import { isGuid, verifySubscriptions } from './scope.mjs';
 
 export const marker = 'AKS-X-RAY-SYNTHETIC-OK';
 export const activeImage = sourceCatalog.activeImage.reference;
@@ -38,7 +39,8 @@ export function validateActiveOptions(options, evidence) {
   if (options.authorizeActive !== true || options.confirmContext !== evidence.target.context) {
     throw new Error('Active tests require --authorize-active and --confirm-context matching the evidence context exactly.');
   }
-  if (binding(evidence).status !== 'verified') throw new Error('Active tests require a verified context-to-ARM endpoint binding.');
+  const targetBinding = binding(evidence);
+  if (targetBinding.status !== 'verified' || targetBinding.mode === 'arm-only') throw new Error('Active tests require a verified context-to-ARM endpoint binding. Collect with the Kubernetes strategy first.');
   const selected = options.suite === 'all' ? [...suites] : [options.suite];
   if (selected.some((suite) => !suites.includes(suite))) throw new Error(`Suite must be all or one of: ${suites.join(', ')}.`);
   const limits = {
@@ -255,15 +257,29 @@ export async function cleanupNamespace(kube, namespace, runId, uid) {
 
 export async function runActive(input, options, {
   runner = runCommand, openForward = startPortForward, request = httpProbe,
-  persist = async () => {}, progress = () => {}, signal
+  persist = async () => {}, progress = () => {}, signal, runIdFactory = randomUUID
 } = {}) {
   const { selected, limits, budgets } = validateActiveOptions(options, input);
   const evidence = structuredClone(input);
   const context = evidence.target.context;
-  const runId = randomUUID();
+  const runId = runIdFactory();
+  if (!isGuid(runId)) throw new Error('Active run ID must be an internally generated UUID.');
   const namespace = `aks-xray-${runId.slice(0, 18)}`;
   const commands = [];
   let recording;
+  if (evidence.target.tenant) {
+    const accountCommands = [];
+    const verified = await verifySubscriptions({ tenant: evidence.target.tenant, subscriptions: evidence.scope.authorizedSubscriptions }, {
+      runner: (file, args) => {
+        const command = { file, args };
+        commands.push(command);
+        accountCommands.push(command);
+        return runner(file, args, { signal });
+      }
+    });
+    evidence.sources.accounts = { status: 'ok', collectedAt: new Date().toISOString(), commands: accountCommands,
+      data: { items: verified.subscriptions } };
+  }
   const kube = (args, overrides = {}) => {
     const command = { file: 'kubectl', args: ['--context', context, '--request-timeout=20s', ...args] };
     commands.push(command);

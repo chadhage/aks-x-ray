@@ -1,9 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ratingGroup": {
+      "type": "object",
+      "required": ["id", "title", "score", "applicable", "scored", "unscored", "coveragePercent", "controlIds"],
+      "properties": {
+        "id": { "type": "string" }, "title": { "type": "string" },
+        "score": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 },
+        "applicable": { "type": "integer", "minimum": 0 }, "scored": { "type": "integer", "minimum": 0 },
+        "unscored": { "type": "integer", "minimum": 0 },
+        "coveragePercent": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "controlIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
   "title": "AKS X-Ray assessment",
   "description": "Runtime validation additionally requires all controls declared by the selected categories and a recomputable summary.",
   "type": "object",
-  "required": ["schemaVersion", "toolVersion", "catalogVersion", "catalogDigest", "assessedAt", "collectedAt", "synthetic", "target", "scope", "summary", "collection", "results"],
+  "required": ["schemaVersion", "toolVersion", "catalogVersion", "catalogDigest", "assessedAt", "collectedAt", "synthetic", "target", "scope", "summary", "collection", "results", "namespaceResults", "ratings"],
   "properties": {
     "schemaVersion": { "const": "1.0" },
     "toolVersion": { "type": "string" },
@@ -48,20 +63,52 @@
           "durationMs": { "type": "number", "minimum": 0 },
           "commands": { "type": "array", "items": { "$ref": "evidence.schema.json#/$defs/command" } },
           "error": { "$ref": "evidence.schema.json#/$defs/source/properties/error" },
-          "reason": { "type": "string" }
+          "reason": { "type": "string" },
+          "failures": { "type": "array", "items": { "$ref": "evidence.schema.json#/$defs/resourceFailure" } }
         },
         "additionalProperties": false
       }
     },
     "activeRun": { "type": "object" },
+    "namespaceResults": {
+      "type": "array", "items": {
+        "type": "object", "required": ["namespace", "results"],
+        "properties": {
+          "namespace": { "type": "string", "minLength": 1, "maxLength": 63 },
+          "results": { "$ref": "#/properties/results" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "ratings": {
+      "type": "object", "required": ["methodology", "overall", "areas", "pillars", "namespaces"],
+      "properties": {
+        "methodology": {
+          "type": "object", "required": ["id", "projectDefined", "scale", "weights", "explanation"],
+          "properties": {
+            "id": { "const": "aks-xray-evidence-v1" }, "projectDefined": { "const": true },
+            "scale": { "const": [1, 100] },
+            "weights": { "const": { "high": 5, "medium": 3, "low": 1, "info": 1 } },
+            "explanation": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "overall": { "$ref": "#/$defs/ratingGroup" },
+        "areas": { "type": "array", "items": { "$ref": "#/$defs/ratingGroup" } },
+        "pillars": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/ratingGroup" } },
+        "namespaces": { "type": "array", "items": { "$ref": "#/$defs/ratingGroup" } }
+      },
+      "additionalProperties": false
+    },
     "results": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["id", "status", "message", "evidence", "incomplete"],
+        "type": "object", "required": ["id", "status", "message", "evidence", "incomplete", "score"],
         "properties": {
           "id": { "type": "string", "pattern": "^[A-Z]+-[0-9]{3}$" },
           "status": { "enum": ["pass", "fail", "review", "unknown", "error", "notApplicable", "notRun"] },
           "message": { "type": "string" }, "incomplete": { "type": "boolean" },
+          "score": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 },
           "classification": { "enum": ["adherence", "deviation", "conflict", "missing", "misconfiguration", "requires-context", "insufficient-evidence"] },
           "observed": { "type": "object" },
           "evidence": {

@@ -2,6 +2,8 @@ import { catalogVersion, catalogDigest, selectControls, severities, statuses, to
 import { schemaVersion, validateEvidence } from './evidence.mjs';
 import { binding } from './collector.mjs';
 import { evaluateRule, manualObservation } from './rules.mjs';
+import { inScope, namespacedSources } from './projection.mjs';
+import { rating } from './scoring.mjs';
 
 export function summarize(results, bindingStatus) {
   const counts = Object.fromEntries(statuses.map((status) => [status, results.filter((result) => result.status === status).length]));
@@ -19,7 +21,7 @@ export function summarize(results, bindingStatus) {
 export function assess(input, { categories = input.scope?.categories, now = new Date() } = {}) {
   const evidence = validateEvidence(input);
   const targetBinding = binding(evidence);
-  const results = selectControls(categories).map((control) => {
+  const evaluate = (control, evidence) => {
     const base = { id: control.id, evidence: [], incomplete: false };
     if (!control.platforms.includes(evidence.target.platform)) {
       return { ...base, status: 'notApplicable', message: `Not applicable to ${evidence.target.platform}; cloud and Local controls are not interchangeable.` };
@@ -39,12 +41,15 @@ export function assess(input, { categories = input.scope?.categories, now = new 
     });
     const missing = control.requires.filter((id) => evidence.sources[id]?.status !== 'ok');
     if (missing.length) {
-      const unrun = control.mode === 'active' && missing.every((id) => !evidence.sources[id] || evidence.sources[id].status === 'notCollected');
+      const withheld = missing.every((id) => evidence.sources[id]?.status === 'notCollected'
+        && /strategy.*not authorized/i.test(evidence.sources[id].reason ?? ''));
+      const unrun = withheld || control.mode === 'active' && missing.every((id) => !evidence.sources[id] || evidence.sources[id].status === 'notCollected');
       const pending = evidence.activeRun?.cleanup?.status === 'pending'
         && missing.some((id) => evidence.sources[id]?.runId === evidence.activeRun.runId);
       return {
         ...base, status: unrun ? 'notRun' : control.mode === 'active' ? 'error' : 'unknown',
-        message: unrun ? pending ? 'Not completed: an authorized run is pending or interrupted; cleanup is unconfirmed.'
+        message: withheld ? 'Not run: required collection strategies were not authorized. This is an evidence gap, not a pass.'
+          : unrun ? pending ? 'Not completed: an authorized run is pending or interrupted; cleanup is unconfirmed.'
           : 'Not run: separate active-test authorization is required.'
           : `Required evidence is unavailable: ${missing.join(', ')}. No successful conclusion is inferred.`,
         incomplete: !unrun
@@ -58,6 +63,24 @@ export function assess(input, { categories = input.scope?.categories, now = new 
     } catch (error) {
       return { ...base, status: 'error', message: `Evaluation error: ${error.message}`, incomplete: true };
     }
+  };
+  const evaluateScored = (control, scopedEvidence) => {
+    const result = evaluate(control, scopedEvidence);
+    return { ...result, score: rating.score(result, targetBinding.status) };
+  };
+  const results = selectControls(categories).map((control) => evaluateScored(control, evidence));
+  const namespaceNames = new Set(evidence.scope.namespaces ?? []);
+  for (const item of evidence.sources.namespaces?.data?.items ?? []) {
+    if (inScope(item.metadata.name, evidence.scope)) namespaceNames.add(item.metadata.name);
+  }
+  for (const id of namespacedSources) {
+    for (const item of evidence.sources[id]?.data?.items ?? []) {
+      if (inScope(item.metadata.namespace, evidence.scope)) namespaceNames.add(item.metadata.namespace);
+    }
+  }
+  const namespaceResults = [...namespaceNames].sort().map((namespace) => {
+    const scopedEvidence = { ...evidence, scope: { ...evidence.scope, namespaces: [namespace] } };
+    return { namespace, results: rating.namespaceControls(categories).map((control) => evaluateScored(control, scopedEvidence)) };
   });
   return {
     schemaVersion, toolVersion, catalogVersion, catalogDigest, assessedAt: now.toISOString(), collectedAt: evidence.collectedAt,
@@ -65,9 +88,10 @@ export function assess(input, { categories = input.scope?.categories, now = new 
     scope: { ...evidence.scope, categories }, summary: summarize(results, targetBinding.status),
     collection: Object.entries(evidence.sources).map(([sourceId, record]) => ({
       sourceId, status: record.status, collectedAt: record.collectedAt, durationMs: record.durationMs,
-      commands: record.commands ?? [], error: record.error, reason: record.reason
+      commands: record.commands ?? [], error: record.error, reason: record.reason, failures: record.failures
     })),
-    activeRun: evidence.activeRun, results
+    activeRun: evidence.activeRun, results, namespaceResults,
+    ratings: rating.build(results, namespaceResults, targetBinding.status, categories)
   };
 }
 

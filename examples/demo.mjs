@@ -34,6 +34,8 @@ export function demoRaw(platform = 'cloud') {
     autoUpgradeProfile: { upgradeChannel: 'stable', nodeOSUpgradeChannel: 'NodeImage' },
     nodeProvisioningProfile: { mode: 'Manual' }
   };
+  const dependencyId = (type, name) => `/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/${type}/${name}`;
+  const nsgId = dependencyId('Microsoft.Network/networkSecurityGroups', 'demo-nsg');
   return {
     context: platform === 'cloud' ? 'https://aks-xray-demo.example.invalid:443' : 'https://10.42.0.10:6443',
     cluster: platform === 'cloud' ? cloud : {
@@ -79,6 +81,31 @@ export function demoRaw(platform = 'cloud') {
     limitranges: list({ kind: 'LimitRange', metadata: metadata('defaults'), spec: { limits: [{ type: 'Container', default: { cpu: '500m', memory: '512Mi' } }] } }),
     clusterrolebindings: list({ kind: 'ClusterRoleBinding', metadata: { name: 'demo-break-glass' },
       roleRef: { kind: 'ClusterRole', name: 'cluster-admin' }, subjects: [{ kind: 'Group', name: 'demo-privileged-operators' }] }),
+    roles: list(), rolebindings: list(),
+    clusterroles: list({ kind: 'ClusterRole', metadata: { name: 'cluster-admin' },
+      rules: [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }] }),
+    validatingwebhooks: list({ kind: 'ValidatingWebhookConfiguration', metadata: { name: 'demo-admission' },
+      webhooks: [{ name: 'policy.example.invalid', failurePolicy: 'Fail', sideEffects: 'None', timeoutSeconds: 10,
+        rules: [{ apiGroups: [''], apiVersions: ['v1'], resources: ['pods'], operations: ['CREATE', 'UPDATE'] }] }] }),
+    mutatingwebhooks: list(),
+    accounts: { id: '00000000-0000-0000-0000-000000000001', tenantId: '10000000-0000-0000-0000-000000000001', state: 'Enabled' },
+    roleAssignments: [{ id: 'synthetic-reader-assignment', scope: cloud.id, principalId: 'synthetic-operator',
+      principalType: 'Group', roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7' }],
+    policyStates: [{ resourceId: cloud.id, complianceState: 'Compliant', timestamp: demoTimestamp, policyAssignmentId: 'synthetic-assignment' }],
+    defenderPricing: { name: 'Containers', pricingTier: 'Standard' },
+    defenderAssessments: [{ name: 'synthetic-assessment', status: { code: 'Healthy' }, resourceDetails: { id: cloud.id } }],
+    advisorRecommendations: [{ id: 'synthetic-recommendation', category: 'Performance', impact: 'Low', resourceMetadata: { resourceId: cloud.id } }],
+    relatedResources: [
+      { id: dependencyId('Microsoft.ContainerRegistry/registries', 'demoregistry'), name: 'demoregistry', type: 'Microsoft.ContainerRegistry/registries',
+        properties: { adminUserEnabled: false, publicNetworkAccess: 'Disabled' } },
+      { id: dependencyId('Microsoft.KeyVault/vaults', 'demo-vault'), name: 'demo-vault', type: 'Microsoft.KeyVault/vaults',
+        properties: { enableSoftDelete: true, enablePurgeProtection: true, enableRbacAuthorization: true, publicNetworkAccess: 'Disabled' } },
+      { id: dependencyId('Microsoft.Storage/storageAccounts', 'demostorage'), name: 'demostorage', type: 'Microsoft.Storage/storageAccounts',
+        properties: { supportsHttpsTrafficOnly: true, minimumTlsVersion: 'TLS1_2', allowBlobPublicAccess: false, allowSharedKeyAccess: false } },
+      { id: nsgId, name: 'demo-nsg', type: 'Microsoft.Network/networkSecurityGroups', properties: { securityRules: [] } },
+      { id: dependencyId('Microsoft.Network/virtualNetworks', 'demo-vnet/subnets/aks'), name: 'aks', type: 'Microsoft.Network/virtualNetworks/subnets',
+        properties: { addressPrefix: '10.10.0.0/24', networkSecurityGroup: { id: nsgId } } }
+    ],
     events: list({ kind: 'Event', metadata: metadata('demo-warning'), type: 'Warning', reason: 'FailedScheduling', count: 1,
       lastTimestamp: demoTimestamp, message: 'This message is intentionally not exported.', involvedObject: { kind: 'Pod', name: 'checkout-example', namespace: 'payments' } }),
     diagnostics: { value: [{ name: 'audit-routing', workspaceId: '/subscriptions/demo/resourceGroups/demo/providers/Microsoft.OperationalInsights/workspaces/demo',

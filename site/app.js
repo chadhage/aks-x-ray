@@ -3,6 +3,7 @@
   const embedded = JSON.parse(document.getElementById('xray-data').textContent);
   const { categories, controls, sourceCatalog, catalogVersion, catalogDigest } = embedded;
   const controlById = new Map(controls.map((control) => [control.id, control]));
+  const rating = ratingRuntime(controls, categories, embedded.namespacedSources);
   const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
   const labels = { pass: 'Pass', fail: 'Fail', review: 'Review', unknown: 'Unknown', error: 'Error', notApplicable: 'Not applicable', notRun: 'Not run' };
   const modeLabels = { passive: 'Read-only', manual: 'Manual review', active: 'Opt-in active' };
@@ -76,6 +77,7 @@
       || Object.entries(summary).some(([key, value]) => key === 'counts'
         ? Object.entries(value).some(([status, total]) => candidate.summary.counts[status] !== total)
         : candidate.summary[key] !== value)) throw new Error('The report summary does not match its findings.');
+    rating.validate(candidate);
     return candidate;
   }
 
@@ -88,6 +90,14 @@
     byId('assessment-tab').hidden = false;
     byId('export-json').hidden = false;
     byId('print-report').hidden = false;
+    const options = [element('option', 'Cluster-wide findings')];
+    options[0].value = 'all';
+    for (const entry of report.namespaceResults) {
+      const option = element('option', entry.namespace);
+      option.value = entry.namespace;
+      options.push(option);
+    }
+    byId('namespace-filter').replaceChildren(...options);
     updateOverview();
     switchView('assessment');
   }
@@ -106,11 +116,33 @@
     byId('platform-label').textContent = report.target.platform === 'cloud' ? 'AKS ON AZURE' : 'AKS ON AZURE LOCAL';
     byId('context-label').textContent = report.target.context;
     byId('catalog-label').textContent = `Catalogue ${catalogVersion}`;
-    byId('binding-value').textContent = report.target.binding.status;
+    byId('binding-value').textContent = `${report.target.binding.status}${report.target.binding.mode === 'arm-only' ? ' (ARM only)' : ''}`;
     byId('binding-value').className = report.target.binding.status === 'verified' ? 'pass' : 'unknown';
     byId('collected-value').textContent = displayDate(report.collectedAt);
     byId('profile-value').textContent = report.scope.profile;
-    byId('scope-description').textContent = `${report.scope.categories.length} categories. Namespaces: ${report.scope.namespaces?.join(', ') || 'all reachable'}; excluded: ${report.scope.excludedNamespaces.join(', ') || 'none'}. Per-source collection is not an atomic snapshot.`;
+    byId('scope-description').textContent = `${report.scope.categories.length} categories. Namespaces: ${report.scope.namespaces?.join(', ') || 'all reachable'}; excluded: ${report.scope.excludedNamespaces.join(', ') || 'none'}. Strategies: ${report.scope.strategies?.join(', ') || 'legacy category dependencies'}. Per-source collection is not an atomic snapshot.`;
+    const overall = report.ratings.overall;
+    byId('overall-score').textContent = `Scored subset: ${overall.score === null ? 'unscored' : `${overall.score}/100`}. Coverage: ${overall.coveragePercent ?? 'unavailable'}%. Unscored applicable assertions: ${overall.unscored}.`;
+    byId('scenario-summary').textContent = report.scope.scenario
+      ? `Scenario: ${report.scope.scenario.name}. API access: ${report.scope.scenario.apiAccess}. Minimum replicas: ${report.scope.scenario.minimumReplicas}; minimum zones: ${report.scope.scenario.minimumZones}. Approved registries: ${report.scope.scenario.allowedRegistries.join(', ') || 'not specified'}.`
+      : 'No additional workload scenario supplied; baseline profile recommendations apply.';
+    for (const [id, groups] of [['area-ratings', report.ratings.areas], ['pillar-ratings', report.ratings.pillars], ['namespace-ratings', report.ratings.namespaces]]) {
+      const table = element('table');
+      const head = element('thead');
+      const header = element('tr');
+      for (const text of ['Area / namespace', 'Score', 'Coverage', 'Unscored']) header.append(element('th', text));
+      head.append(header);
+      const body = element('tbody');
+      for (const group of groups) {
+        const row = element('tr');
+        for (const text of [group.title, group.score === null ? 'Unscored' : `${group.score}/100`,
+          group.coveragePercent === null ? 'N/A' : `${group.coveragePercent}%`, group.unscored]) row.append(element('td', text));
+        body.append(row);
+      }
+      table.append(head, body);
+      byId(id).replaceChildren(groups.length ? table : element('p', 'No namespace-scoped inventory was available; this is an evidence gap.'));
+    }
+    byId('collection-details').textContent = JSON.stringify(report.collection, null, 2);
     byId('report-banner').textContent = report.synthetic
       ? 'SYNTHETIC SAMPLE - generated example data; no Azure or Kubernetes cluster was queried. Open an assessment JSON file to view collected results.'
       : 'COLLECTED CONFIGURATION - check source timestamps, collection errors, scope, and manual reviews before interpreting results.';
@@ -163,6 +195,7 @@
     const metadata = element('div', undefined, 'finding-meta');
     metadata.append(element('span', control.id, 'control-id'), badge(control.severity, `severity-${control.severity}`),
       badge(modeLabels[control.mode]));
+    if (result) metadata.append(badge(result.score === null ? 'Unscored' : `${result.score}/100`));
     const status = result ? badge(labels[result.status], `status ${result.status}`) : badge(control.platforms.join(' / '), 'status');
     summary.append(metadata, status, element('h3', control.title), element('p', result?.message || control.assertion));
     const body = element('div', undefined, 'finding-body');
@@ -202,7 +235,10 @@
     const status = byId('status-filter').value;
     const platform = byId('platform-filter').value;
     const mode = byId('mode-filter').value;
-    const results = new Map(report ? report.results.map((result) => [result.id, result]) : []);
+    const namespace = byId('namespace-filter').value;
+    const selected = report && view !== 'catalog' && namespace !== 'all'
+      ? report.namespaceResults.find((entry) => entry.namespace === namespace).results : report?.results;
+    const results = new Map(selected ? selected.map((result) => [result.id, result]) : []);
     const available = view === 'catalog' ? controls : controls.filter((control) => results.has(control.id));
     const filtered = available.filter((control) => {
       const result = view === 'catalog' ? undefined : results.get(control.id);
@@ -234,6 +270,7 @@
     byId('results-section').hidden = !['assessment', 'catalog'].includes(view);
     byId('status-filter-label').hidden = view === 'catalog';
     byId('platform-filter-label').hidden = view !== 'catalog';
+    byId('namespace-filter-label').hidden = view !== 'assessment';
     if (view === 'assessment' || view === 'catalog') updateFindings();
   }
 
@@ -268,11 +305,11 @@
   byId('review-date').textContent = `Guidance reviewed ${sourceCatalog.reviewedAt}`;
 
   for (const button of document.querySelectorAll('[data-view]')) button.addEventListener('click', () => switchView(button.dataset.view));
-  for (const id of ['search', 'category-filter', 'status-filter', 'platform-filter', 'mode-filter']) byId(id).addEventListener('input', updateFindings);
+  for (const id of ['search', 'category-filter', 'status-filter', 'platform-filter', 'mode-filter', 'namespace-filter']) byId(id).addEventListener('input', updateFindings);
   for (const id of ['planner-platform', 'planner-category', 'planner-launcher']) byId(id).addEventListener('change', planner);
   byId('reset-filters').addEventListener('click', () => {
     byId('search').value = '';
-    for (const id of ['category-filter', 'status-filter', 'platform-filter', 'mode-filter']) byId(id).value = 'all';
+    for (const id of ['category-filter', 'status-filter', 'platform-filter', 'mode-filter', 'namespace-filter']) byId(id).value = 'all';
     updateFindings();
   });
   byId('toggle-theme').addEventListener('click', () => {

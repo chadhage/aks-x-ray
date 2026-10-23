@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src data:; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <title>AKS workload diagnosis | AKS X-Ray</title>
+  <script>
+    (() => {
+      const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+      const theme =
+        param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+  <style><!--DIAG_STYLE--></style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="masthead">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">X</span><div><strong>AKS X-RAY</strong><span>Evidence-led workload diagnosis</span></div></div>
+    <div class="header-actions"><button id="export-diagnosis" type="button">Export diagnosis JSON</button><button id="print-diagnosis" type="button">Print</button><button id="diagnosis-theme" type="button">Theme</button></div>
+  </header>
+  <nav class="diagnosis-nav" aria-label="Diagnosis sections"><a href="#risk-overview">Risk &amp; evidence</a><a href="#attack-paths">Attack hypotheses</a><a href="#graph-explorer">Resource &amp; identity graph</a><a href="#stage-plan">Validation stages</a><a href="#namespace-view">Reporting views</a></nav>
+  <main id="main">
+    <section class="hero"><p class="eyebrow">RESOURCE / IDENTITY / EXPOSURE / VALIDATION</p><h1>AKS workload diagnosis</h1><p class="lede">Reconciled findings from independently selected strategies. Configuration and namespace summaries are views of the findings, not the organizing principle of this assessment.</p><p id="diagnosis-scope" class="fine-print"></p></section>
+    <div id="diagnosis-banner" class="notice"></div>
+    <section id="risk-overview" aria-labelledby="risk-heading">
+      <h2 id="risk-heading">Risk, confidence and evidence</h2>
+      <div class="metric-grid diagnosis-metrics">
+        <article class="metric"><span>Highest review priority</span><strong id="diagnosis-risk">-</strong><p>1-100; higher is worse, not CVSS or probability</p></article>
+        <article class="metric"><span>Reconciled findings</span><strong id="diagnosis-findings">-</strong><p id="diagnosis-conflicts"></p></article>
+        <article class="metric"><span>Observed source coverage</span><strong id="diagnosis-coverage">-</strong><p>Recorded source visibility, not all possible assets</p></article>
+        <article class="metric"><span>Graph &amp; evidence gaps</span><strong id="diagnosis-gaps">-</strong><p>Missing access and unknowns are not low risk</p></article>
+      </div>
+      <article class="panel"><h3 id="scenario-name"></h3><p id="scenario-description"></p><p id="scenario-assumptions"></p><p>Configured exposure is a declaration. Plausible exploitability is a conditional graph hypothesis. Validated behavior requires a receipt bound to its exact subject, condition, context, namespace and timestamp. No single probe validates an entire attack path.</p></article>
+      <div class="filters diagnosis-filters">
+        <label class="search-field">Search findings<input id="diagnosis-search" type="search" placeholder="Identity, public entry, secret access..."></label>
+        <label>Contributing strategy<select id="strategy-filter"><option value="all">All selected strategies</option></select></label>
+        <label>Evidence tier<select id="evidence-tier-filter"><option value="all">All tiers</option><option value="configured-exposure">Configured exposure</option><option value="plausible-exploitability">Plausible exploitability</option><option value="validated-behavior">Validated behavior</option></select></label>
+        <label>Status<select id="diagnosis-status"><option value="all">All statuses</option><option value="observed">Observed</option><option value="conflicting">Conflicting</option><option value="refuted">Refuted</option><option value="inconclusive">Inconclusive</option></select></label>
+      </div>
+      <p class="fine-print">Filters only change this report view. Risk and reconciliation still reflect the selected run. Use CLI/configuration to conduct a single-strategy or combined assessment; this page never connects to the cluster.</p>
+      <p id="diagnosis-result-count" role="status" class="fine-print"></p>
+      <div id="diagnosis-finding-list" class="diagnosis-cards"></div>
+    </section>
+    <section id="attack-paths" class="diagnosis-section"><p class="eyebrow">CONNECTED HYPOTHESES, NOT ISOLATED FLAGS</p><h2>Attack hypotheses and prerequisites</h2><div id="diagnosis-path-list" class="diagnosis-cards"></div></section>
+    <section id="graph-explorer" class="diagnosis-section"><p class="eyebrow">APPROVED SUBSCRIPTIONS AND WORKLOADS</p><h2>Resource and identity graph</h2><p id="graph-counts" class="fine-print"></p>
+      <div class="planner"><label>Search nodes<input id="graph-search" type="search" placeholder="Resource, identity, namespace or ID"></label><label>Node kind<select id="graph-kind"><option value="all">All node kinds</option></select></label></div>
+      <div class="diagnosis-graph-layout"><div><p id="graph-visible-count" class="fine-print"></p><div id="graph-node-list" class="graph-node-list"></div></div>
+        <article class="panel graph-detail"><h3 id="graph-selected">Choose a node</h3><div id="graph-neighborhood" class="graph-neighborhood"></div><div id="graph-relations" class="diagnosis-table"></div><details><summary>Facts and source references</summary><pre id="graph-node-facts"></pre></details></article>
+      </div>
+    </section>
+    <section id="stage-plan" class="diagnosis-section"><p class="eyebrow">APPROVAL IS NOT PERMISSION</p><h2>Permission-aware validation stages</h2><p>Passive metadata, non-mutating reviews and intrusive canaries have separate gates. Intrusive checks require exact-context approval, a fresh complete permission matrix, bounded jobs and verified owned cleanup.</p><div id="diagnosis-plan-table" class="diagnosis-table"></div><details><summary>Recorded validation receipts</summary><pre id="diagnosis-validation-records"></pre></details></section>
+    <section id="namespace-view" class="diagnosis-section"><p class="eyebrow">DERIVED REPORTING VIEWS</p><h2>Namespace and configuration-area summaries</h2><div class="two-column"><article class="panel"><h3>Namespaces</h3><div id="diagnosis-namespace-table" class="diagnosis-table"></div></article><article class="panel"><h3>Configuration areas</h3><div id="diagnosis-area-table" class="diagnosis-table"></div></article></div>
+      <article class="panel diagnosis-section"><h3>Optional configuration strategy</h3><p>Legacy adherence scores are higher-is-better and are not the risk priority above. These inputs exist only when the configuration strategy was selected.</p><div id="diagnosis-configuration-table" class="diagnosis-table"></div></article>
+    </section>
+    <section class="diagnosis-section panel"><h2>Evidence gaps, reconciliation and methodology</h2><div id="diagnosis-gap-list"></div><p id="diagnosis-methodology"></p><details><summary>Recorded source provenance</summary><pre id="diagnosis-source-records"></pre></details></section>
+  </main>
+  <footer><strong>AKS X-Ray</strong><span>Project-defined risk and confidence. Not a Microsoft score or exhaustive penetration test.</span><span>Offline. No external assets or analytics.</span></footer>
+  <noscript><p class="notice">Open the paired diagnosis.md or diagnosis.json for the complete offline report.</p></noscript>
+  <script id="diagnosis-data" type="application/json"><!--DIAG_DATA--></script>
+  <script><!--DIAG_SCRIPT--></script>
+</body>
+</html>

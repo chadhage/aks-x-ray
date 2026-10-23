@@ -10,11 +10,13 @@ Before use:
 
 1. Review [permissions](permissions.md) and the generated resource design in [the active runner](../src/active.mjs).
 2. Test the runner against a nonproduction test cluster. This implementation has offline/mocked tests but has **not been validated on a live cloud or Local cluster**.
-3. Collect real evidence with verified endpoint binding. Synthetic demo evidence, mismatched targets and unresolved prior cleanup are rejected.
+3. Collect real evidence with verified context-to-ARM endpoint binding. For audits, authorize the `kubernetes` strategy first; an ARM-only binding cannot authorize active tests. Synthetic evidence, mismatched targets and unresolved prior cleanup are rejected. Tenant-bound runs recheck all approved subscription account metadata before issuing any Kubernetes command.
 4. Approve the official `mcr.microsoft.com/azure-cli:azurelinux3.0` runtime. The [source registry](../catalog/sources.json) pins its reviewed MCR manifest digest; its image configuration is Linux amd64 and its official RPM requires Python. Review the pinned image's currency and vulnerability evidence before use. Updating a tag without revalidating the new digest is not sufficient. There is no automatic arbitrary-image override.
 5. Confirm that Linux amd64 nodes have capacity and that your admission policies permit the constrained resources. No policy is disabled or bypassed.
 
 ## Execute
+
+For permission-aware strategy orchestration, use [diagnosis stage approvals](diagnosis.md#permission-aware-stages). That path requires fresh exact-namespace permission review, binds the prepared UUID to execution, rechecks actor/context, and enforces expiry throughout test activity while preserving owned cleanup. The command below remains the standalone legacy compatibility runner; it does not imply that an audit config or saved report authorizes it.
 
 ```powershell
 node .\bin\aks-xray.mjs active `
@@ -27,7 +29,7 @@ node .\bin\aks-xray.mjs active `
   --output ".\artifacts\authorized-smoke"
 ```
 
-`--suite` accepts `connectivity`, `end-to-end`, `load`, `security` or `all`. Neither `collect` nor selecting `active-validation` authorizes mutations.
+`--suite` accepts `connectivity`, `end-to-end`, `load`, `security` or `all`. Neither `audit`, `collect`, read-only approval nor selecting `active-validation` authorizes mutations. For multi-target audit output, select one exact `cluster-NNN/evidence.json` and confirm that target's context; there is no fleet-wide active-test shortcut.
 
 ## Isolation and safety bounds
 
@@ -43,6 +45,8 @@ node .\bin\aks-xray.mjs active `
 - The admission negative test uses `--dry-run=server`. Only a specific restricted-PSA rejection counts as successful denial; an unrelated Forbidden/timeout is an error.
 
 Ctrl+C/SIGTERM requests cancellation and cleanup. Power loss, forced process termination, filesystem errors or a broken control plane can prevent cleanup; inspect the persisted run record. Active evidence/report snapshots are updated as the run progresses.
+
+Strategy-enabled audits additionally retain per-action pending/cleanup snapshots under `validations/`. A new diagnosis can be rendered offline from saved evidence; that action never reruns these tests or reuses cached permission reviews to authorize new mutations.
 
 ## What the measurements establish
 

@@ -6,7 +6,7 @@ export const categories = read('categories');
 export const controls = read('controls');
 export const sourceCatalog = read('sources');
 export const catalogVersion = sourceCatalog.catalogVersion;
-export const toolVersion = '0.1.0';
+export const toolVersion = '0.3.0';
 export const catalogDigest = createHash('sha256').update(JSON.stringify({ categories, controls, sourceCatalog })).digest('hex');
 export const statuses = ['pass', 'fail', 'review', 'unknown', 'error', 'notApplicable', 'notRun'];
 export const severities = ['high', 'medium', 'low', 'info'];
@@ -23,6 +23,11 @@ export function validateCatalog() {
     throw new Error('The active runtime must be an explicitly pinned official Microsoft image.');
   }
   const ids = new Set();
+  const pillars = ['reliability', 'security', 'cost-optimization', 'operational-excellence', 'performance-efficiency'];
+  for (const category of categories) {
+    if (!Array.isArray(category.pillars) || !category.pillars.length || new Set(category.pillars).size !== category.pillars.length
+      || category.pillars.some((pillar) => !pillars.includes(pillar))) throw new Error(`Invalid WAF pillar mapping: ${category.id}`);
+  }
   const sourceIds = new Set(sourceCatalog.sources.map(({ id }) => id));
   for (const source of sourceCatalog.sources) {
     const url = new URL(source.url);

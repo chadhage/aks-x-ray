@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AKS X-Ray parameterized audit configuration",
+  "description": "Runtime validation also verifies GUIDs, approved subscription membership, target uniqueness, strategy dependencies and exact resource ID scope before external commands.",
+  "type": "object",
+  "required": ["tenant", "subscriptions", "authorization", "strategies", "scenario"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "tenant": { "type": "string", "format": "uuid" },
+    "targetSelection": { "type": "string", "enum": ["named", "default-subscription-only", "all-accessible-clusters"] },
+    "subscriptions": { "$ref": "evidence.schema.json#/properties/scope/properties/authorizedSubscriptions" },
+    "authorization": { "$ref": "evidence.schema.json#/properties/scope/properties/authorization" },
+    "strategies": { "$ref": "evidence.schema.json#/properties/scope/properties/strategies" },
+    "scenario": {
+      "type": "object", "required": ["name", "profile"],
+      "properties": {
+        "name": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/name" },
+        "profile": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/profile" },
+        "apiAccess": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/apiAccess" },
+        "minimumReplicas": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/minimumReplicas" },
+        "minimumZones": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/minimumZones" },
+        "allowedRegistries": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/allowedRegistries" },
+        "businessCriticality": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/businessCriticality" },
+        "dataSensitivity": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/dataSensitivity" },
+        "applicationExposure": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/applicationExposure" },
+        "assumedCompromise": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario/properties/assumedCompromise" }
+      },
+      "additionalProperties": false
+    },
+    "targets": {
+      "type": "array", "minItems": 0, "maxItems": 100, "items": {
+        "type": "object", "required": ["platform", "subscription", "resourceGroup", "cluster"],
+        "properties": {
+          "platform": { "enum": ["cloud", "local"] },
+          "subscription": { "type": "string", "format": "uuid" },
+          "resourceGroup": { "type": "string", "minLength": 1, "maxLength": 90 },
+          "cluster": { "type": "string", "minLength": 1, "maxLength": 63 },
+          "context": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "categories": { "$ref": "evidence.schema.json#/properties/scope/properties/categories" },
+    "namespaces": { "$ref": "evidence.schema.json#/properties/scope/properties/namespaces" },
+    "includeSystem": { "type": "boolean" },
+    "relatedResourceIds": { "$ref": "evidence.schema.json#/properties/scope/properties/relatedResourceIds" },
+    "maxRelatedResources": { "$ref": "evidence.schema.json#/properties/scope/properties/maxRelatedResources" },
+    "assessment": { "$ref": "assessment-options.schema.json" }
+  },
+  "additionalProperties": false
+}

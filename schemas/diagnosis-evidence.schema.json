@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Portable AKS diagnosis evidence dataset",
+  "description": "Referenced bundle paths must remain within this dataset and their SHA-256 hashes are checked before reassessment. Loading this manifest never executes live validation.",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "tenant", "subscriptions", "scenario", "assessment", "bundles", "validationRecords"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" }, "kind": { "const": "aks-xray-diagnosis-evidence" },
+    "tenant": { "type": ["string", "null"] },
+    "subscriptions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "format": "uuid" } },
+    "scenario": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario" },
+    "assessment": { "$ref": "assessment-options.schema.json" },
+    "bundles": { "type": "array", "minItems": 1, "maxItems": 100, "items": {
+      "type": "object", "required": ["path", "sha256"], "properties": {
+        "path": { "type": "string", "pattern": "^cluster-[0-9]{3}/evidence\\.json$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }, "additionalProperties": false
+    } },
+    "validationRecords": { "$ref": "diagnosis.schema.json#/properties/validationRecords" }
+  },
+  "additionalProperties": false
+}

@@ -111,6 +111,13 @@ dd { margin: 0; color: var(--cp-text-muted); overflow-wrap: anywhere; }
 .legend span { display: inline-flex; gap: 8px; align-items: center; }
 .legend i { width: 8px; height: 8px; border-radius: 2px; }
 .priority-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+#rating-overview { margin-bottom: 24px; }
+#rating-overview h3 { margin-top: 24px; }
+.ratings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.rating-table { overflow-x: auto; margin: 12px 0; }
+.rating-table table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.rating-table th, .rating-table td { text-align: left; border-bottom: 1px solid var(--cp-border); padding: 8px; }
+.rating-table th { color: var(--cp-text-muted); }
 .priority-card { border-left: 3px solid var(--cp-danger); padding: 20px; }
 .priority-card p { color: var(--cp-text-muted); font-size: 0.8125rem; margin-top: 12px; }
 .priority-card .eyebrow { color: var(--cp-danger); margin-top: 0; }
@@ -171,7 +178,7 @@ footer strong { color: var(--cp-text); }
   .masthead { align-items: flex-start; flex-direction: column; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .priority-grid, .source-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .scope-panel, .two-column { grid-template-columns: 1fr; }
+  .scope-panel, .two-column, .ratings-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .masthead, main, footer { padding-left: 16px; padding-right: 16px; }

@@ -52,7 +52,12 @@
     },
     {
       "apiGroups": ["rbac.authorization.k8s.io"],
-      "resources": ["clusterrolebindings"],
+      "resources": ["clusterrolebindings", "clusterroles", "roles", "rolebindings"],
+      "verbs": ["get", "list"]
+    },
+    {
+      "apiGroups": ["admissionregistration.k8s.io"],
+      "resources": ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"],
       "verbs": ["get", "list"]
     }
   ]

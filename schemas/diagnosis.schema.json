@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AKS X-Ray graph and risk diagnosis",
+  "description": "Runtime validation also recomputes strategy results, reconciliation, risk, confidence, evidence tiers and derived views; validates graph endpoints/provenance and exact-scope validation receipts.",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "toolVersion", "assessedAt", "synthetic", "selection", "assessment", "scenario", "graph", "plan", "validationRecords", "configurationAssessments", "findings", "summary", "views", "strategyResults", "gaps", "coverage", "methodology"],
+  "properties": {
+    "schemaVersion": { "const": "2.0" }, "kind": { "const": "aks-xray-diagnosis" },
+    "toolVersion": { "type": "string" }, "assessedAt": { "type": "string", "format": "date-time" },
+    "synthetic": { "type": "boolean" },
+    "selection": { "type": "object", "required": ["strategies", "stages"], "properties": {
+      "strategies": { "$ref": "assessment-options.schema.json#/properties/strategies" },
+      "stages": { "$ref": "assessment-options.schema.json#/properties/stages" }
+    }, "additionalProperties": false },
+    "assessment": { "$ref": "assessment-options.schema.json" },
+    "scenario": { "$ref": "evidence.schema.json#/properties/scope/properties/scenario" },
+    "graph": { "$ref": "#/$defs/graph" },
+    "plan": { "type": "object", "required": ["schemaVersion", "strategies", "stages", "actions", "summary", "limitations"],
+      "properties": { "schemaVersion": { "const": "1.0" }, "strategies": { "type": "array" }, "stages": { "type": "array" },
+        "actions": { "type": "array", "items": { "type": "object", "required": ["id", "stage", "testId", "clusterId", "context", "namespace", "status", "permissionStatus", "reasons"],
+          "properties": { "id": { "type": "string" }, "stage": { "enum": ["passive", "non-mutating", "intrusive"] },
+            "status": { "enum": ["ready", "blocked", "completed", "collected", "partial", "error", "pending"] },
+            "permissionStatus": { "enum": ["unknown", "denied", "allowed"] }, "reasons": { "type": "array", "items": { "type": "string" } } } } },
+        "summary": { "type": "object" }, "limitations": { "type": "array", "items": { "type": "string" } } },
+      "additionalProperties": false },
+    "validationRecords": { "type": "array", "maxItems": 10000, "items": { "type": "object", "required": ["id", "status", "clusterId", "context", "completedAt"],
+      "properties": { "id": { "type": "string" }, "status": { "enum": ["completed", "error", "blocked", "pending"] },
+        "completedAt": { "type": "string", "format": "date-time" }, "stage": { "enum": ["non-mutating", "intrusive"] } } } },
+    "configurationAssessments": { "type": "array", "items": { "$ref": "assessment.schema.json" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "summary": { "type": "object", "required": ["total", "observed", "conflicting", "refuted", "inconclusive", "highestRisk", "assurance"],
+      "properties": { "total": { "type": "integer", "minimum": 0 }, "highestRisk": { "$ref": "#/$defs/nullableScore" } } },
+    "views": { "type": "object", "required": ["namespaces", "areas", "clusters"], "properties": {
+      "namespaces": { "$ref": "#/$defs/viewList" }, "areas": { "$ref": "#/$defs/viewList" }, "clusters": { "$ref": "#/$defs/viewList" }
+    }, "additionalProperties": false },
+    "strategyResults": { "type": "array", "items": { "type": "object", "required": ["id", "status", "claimIds", "limitations"],
+      "properties": { "id": { "enum": ["configuration", "graph", "exposure", "attack-paths", "validation"] },
+        "status": { "enum": ["completed", "blocked"] }, "claimIds": { "type": "array", "items": { "type": "string" } },
+        "limitations": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": false } },
+    "gaps": { "type": "array", "items": { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" } } } },
+    "coverage": { "type": "object", "required": ["sources", "validations", "graph"] },
+    "methodology": { "type": "object", "required": ["risk", "confidence", "tiers", "scope"] }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nullableScore": { "type": ["integer", "null"], "minimum": 1, "maximum": 100 },
+    "viewList": { "type": "array", "items": { "type": "object", "required": ["id", "findingIds", "highestRisk", "conflicts"],
+      "properties": { "id": { "type": "string" }, "findingIds": { "type": "array", "items": { "type": "string" } },
+        "highestRisk": { "$ref": "#/$defs/nullableScore" }, "conflicts": { "type": "integer", "minimum": 0 } }, "additionalProperties": false } },
+    "graph": {
+      "type": "object", "required": ["schemaVersion", "scope", "synthetic", "incomplete", "nodes", "edges", "sources", "gaps"],
+      "properties": {
+        "schemaVersion": { "const": "1.0" }, "scope": { "type": "object", "required": ["tenant", "subscriptions", "clusters", "targets"] },
+        "synthetic": { "type": "boolean" }, "incomplete": { "type": "boolean" },
+        "nodes": { "type": "array", "items": { "type": "object", "required": ["id", "kind", "name", "facts", "evidenceRefs"],
+          "properties": { "id": { "type": "string" }, "kind": { "type": "string" }, "name": { "type": "string" },
+            "facts": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "object", "required": ["value", "evidenceRef"],
+              "properties": { "value": {}, "evidenceRef": { "type": "string" } }, "additionalProperties": false } } },
+            "evidenceRefs": { "type": "array", "items": { "type": "string" } } } } },
+        "edges": { "type": "array", "items": { "type": "object", "required": ["id", "from", "to", "relationship", "state", "evidenceRefs"],
+          "properties": { "id": { "type": "string" }, "from": { "type": "string" }, "to": { "type": "string" },
+            "relationship": { "type": "string" }, "state": { "enum": ["observed", "configured", "conditional"] },
+            "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string" } } } } },
+        "sources": { "type": "array", "items": { "type": "object", "required": ["id", "clusterId", "sourceId", "status", "collectedAt", "pointer", "bindingStatus", "digest", "commands"],
+          "properties": { "status": { "enum": ["ok", "error", "missing", "notCollected", "notApplicable"] },
+            "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "commands": { "type": "array", "items": { "$ref": "evidence.schema.json#/$defs/command" } } } } },
+        "gaps": { "type": "array", "items": { "type": "object", "required": ["code"] } }
+      },
+      "additionalProperties": false
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "subject", "predicate", "title", "description", "scope", "area", "status", "evidenceTier", "strategies", "contributions", "evidenceRefs", "validationIds", "paths", "risk", "confidence", "recommendation"],
+      "properties": {
+        "id": { "type": "string" }, "subject": { "type": "string" }, "predicate": { "type": "string" }, "title": { "type": "string" }, "description": { "type": "string" },
+        "scope": { "type": "object", "required": ["clusterIds", "namespace", "resourceId"] }, "area": { "type": "string" },
+        "status": { "enum": ["observed", "conflicting", "refuted", "inconclusive"] },
+        "evidenceTier": { "enum": ["configured-exposure", "plausible-exploitability", "validated-behavior"] },
+        "strategies": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["configuration", "graph", "exposure", "attack-paths", "validation"] } },
+        "contributions": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["id", "strategy", "subject", "predicate", "stance", "tier", "effectiveTier", "evidenceRefs"],
+          "properties": { "stance": { "enum": ["supports", "refutes", "inconclusive"] } } } },
+        "evidenceRefs": { "type": "array", "items": { "type": "string" } }, "validationIds": { "type": "array", "items": { "type": "string" } },
+        "paths": { "type": "array", "items": { "type": "object", "required": ["id", "nodes", "edges", "prerequisites"],
+          "properties": { "id": { "type": "string" }, "nodes": { "type": "array", "items": { "type": "string" } },
+            "edges": { "type": "array", "items": { "type": "string" } },
+            "prerequisites": { "type": "array", "items": { "type": "object", "required": ["id", "status", "description"],
+              "properties": { "status": { "enum": ["satisfied", "assumed", "unknown", "blocked"] } } } } } } },
+        "risk": { "type": "object", "required": ["score", "impact", "feasibilityIndex", "higherIsWorse", "rationale"],
+          "properties": { "score": { "$ref": "#/$defs/nullableScore" }, "impact": { "$ref": "#/$defs/nullableScore" },
+            "feasibilityIndex": { "$ref": "#/$defs/nullableScore" }, "higherIsWorse": { "const": true }, "rationale": { "type": "string" } }, "additionalProperties": false },
+        "confidence": { "type": "object", "required": ["score", "limitations"], "properties": {
+          "score": { "type": "integer", "minimum": 1, "maximum": 100 }, "limitations": { "type": "array", "items": { "type": "string" } }
+        }, "additionalProperties": false },
+        "recommendation": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

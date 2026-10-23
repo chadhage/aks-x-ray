@@ -1,6 +1,6 @@
 {
-  "catalogVersion": "2026.10.21",
-  "reviewedAt": "2026-10-20",
+  "catalogVersion": "2026.10.22",
+  "reviewedAt": "2026-10-22",
   "policy": "All assessment references use Microsoft Learn. This project defines the control assertions; they do not constitute Microsoft certification.",
   "activeImage": {
     "tag": "mcr.microsoft.com/azure-cli:azurelinux3.0",
@@ -29,6 +29,15 @@
     { "id": "aks-disk", "title": "Create and manage Azure Disk persistent volumes", "url": "https://learn.microsoft.com/azure/aks/azure-csi-disk-storage-provision", "scope": "WaitForFirstConsumer and topology-aware Azure Disk provisioning." },
     { "id": "aks-images", "title": "Container image management and security best practices", "url": "https://learn.microsoft.com/azure/aks/operator-best-practices-container-image-management", "scope": "Validated images, vulnerability assessment and base-image update pipelines. A tag check alone cannot prove these controls." },
     { "id": "azure-testing-policy", "title": "Azure penetration testing policy", "url": "https://learn.microsoft.com/azure/security/fundamentals/pen-testing", "scope": "Resource-owner authorization and applicable Microsoft rules of engagement. The CLI does not perform DoS, unauthorized access or exploitation." },
-    { "id": "azure-load-testing", "title": "Azure Load Testing overview", "url": "https://learn.microsoft.com/azure/load-testing/overview-what-is-azure-load-testing", "scope": "Workload-specific performance tests with separate approval. The CLI's HTTP latency and error budgets are operator-defined, not Microsoft performance requirements." }
+    { "id": "azure-load-testing", "title": "Azure Load Testing overview", "url": "https://learn.microsoft.com/azure/load-testing/overview-what-is-azure-load-testing", "scope": "Workload-specific performance tests with separate approval. The CLI's HTTP latency and error budgets are operator-defined, not Microsoft performance requirements." },
+    { "id": "azure-cli-device-login", "title": "Azure CLI interactive and device-code authentication", "url": "https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively", "scope": "Explicit tenant-scoped device authentication. Conditional Access can disallow this flow; never bypass it." },
+    { "id": "azure-rbac", "title": "Azure RBAC best practices", "url": "https://learn.microsoft.com/azure/role-based-access-control/best-practices", "scope": "Least privilege, narrow scopes and privileged access review; assignment metadata alone does not establish effective authorization." },
+    { "id": "defender-containers", "title": "Defender for Containers overview", "url": "https://learn.microsoft.com/azure/defender-for-cloud/defender-for-containers-introduction", "scope": "Subscription plan and scoped assessment metadata; telemetry freshness and runtime detection remain independent evidence." },
+    { "id": "azure-advisor", "title": "Azure Advisor overview", "url": "https://learn.microsoft.com/azure/advisor/advisor-overview", "scope": "Existing scoped cost, reliability, performance, security and operational recommendations; no automatic refresh or remediation." },
+    { "id": "aks-psa", "title": "Pod Security Admission in AKS", "url": "https://learn.microsoft.com/azure/aks/use-psa", "scope": "Namespace enforcement labels, policy versions and exceptions; labels are distinct from tested enforcement." },
+    { "id": "azure-acr-security", "title": "Azure Container Registry security baseline", "url": "https://learn.microsoft.com/security/benchmark/azure/baselines/container-registry-security-baseline", "scope": "Managed authentication, network access and registry administrator configuration." },
+    { "id": "azure-keyvault-security", "title": "Azure Key Vault security overview", "url": "https://learn.microsoft.com/azure/key-vault/general/security-features", "scope": "RBAC, soft delete, purge protection and vault network metadata, without reading stored values." },
+    { "id": "azure-storage-security", "title": "Security recommendations for Blob storage", "url": "https://learn.microsoft.com/azure/storage/blobs/security-recommendations", "scope": "Secure transfer, minimum TLS, anonymous access and identity-based authorization; no data-plane collection." },
+    { "id": "azure-nsg", "title": "Azure network security groups overview", "url": "https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview", "scope": "Declared rules and subnet association; effective traffic decisions require attachment, priority, route and firewall context." }
   ]
 }

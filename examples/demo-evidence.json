@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0",
-  "toolVersion": "0.1.0",
-  "catalogVersion": "2026.10.21",
-  "catalogDigest": "03e5d5c827f31d828b50881577e45edf0e6919bbb5fbcc8d1f650a41f814f96a",
+  "toolVersion": "0.3.0",
+  "catalogVersion": "2026.10.22",
+  "catalogDigest": "23c82a843545f46737709ce33e968c3f889610c05b7c6548c9c7a9d1bf974ac4",
   "collectedAt": "2026-10-20T12:00:00.000Z",
   "synthetic": true,
   "target": {
@@ -28,7 +28,8 @@
       "lifecycle",
       "business-continuity",
       "azure-local",
-      "active-validation"
+      "active-validation",
+      "dependencies"
     ],
     "namespaces": null,
     "excludedNamespaces": [
@@ -70,6 +71,8 @@
         "aadProfile": {
           "managed": true
         },
+        "identityProfile": {},
+        "linkedResourceIds": [],
         "apiServerAccessProfile": {
           "enablePrivateCluster": false,
           "authorizedIpRanges": [
@@ -560,7 +563,8 @@
               "generation": 1,
               "labels": {}
             },
-            "automountServiceAccountToken": false
+            "automountServiceAccountToken": false,
+            "workloadIdentity": {}
           }
         ]
       }
@@ -840,6 +844,255 @@
       "status": "notCollected",
       "collectedAt": "2026-10-20T12:00:00.000Z",
       "reason": "Synthetic demo; no active tests executed."
+    },
+    "validatingwebhooks": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "kind": "ValidatingWebhookConfiguration",
+            "metadata": {
+              "name": "demo-admission"
+            },
+            "webhooks": [
+              {
+                "name": "policy.example.invalid",
+                "failurePolicy": "Fail",
+                "timeoutSeconds": 10,
+                "sideEffects": "None",
+                "rules": [
+                  {
+                    "apiGroups": [
+                      ""
+                    ],
+                    "apiVersions": [
+                      "v1"
+                    ],
+                    "resources": [
+                      "pods"
+                    ],
+                    "operations": [
+                      "CREATE",
+                      "UPDATE"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "mutatingwebhooks": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": []
+      }
+    },
+    "defenderPricing": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "name": "Containers",
+            "pricingTier": "Standard"
+          }
+        ]
+      }
+    },
+    "defenderAssessments": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "name": "synthetic-assessment",
+            "status": {
+              "code": "Healthy"
+            },
+            "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.ContainerService/managedClusters/xray-demo"
+          }
+        ]
+      }
+    },
+    "roleAssignments": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "id": "synthetic-reader-assignment",
+            "scope": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.ContainerService/managedClusters/xray-demo",
+            "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+            "principalId": "synthetic-operator",
+            "principalType": "Group",
+            "hasCondition": false
+          }
+        ]
+      }
+    },
+    "roles": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": []
+      }
+    },
+    "rolebindings": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": []
+      }
+    },
+    "clusterroles": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "kind": "ClusterRole",
+            "metadata": {
+              "name": "cluster-admin"
+            },
+            "rules": [
+              {
+                "apiGroups": [
+                  "*"
+                ],
+                "resources": [
+                  "*"
+                ],
+                "verbs": [
+                  "*"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "policyStates": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.ContainerService/managedClusters/xray-demo",
+            "complianceState": "Compliant",
+            "timestamp": "2026-10-20T12:00:00.000Z",
+            "policyAssignmentId": "synthetic-assignment"
+          }
+        ]
+      }
+    },
+    "advisorRecommendations": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "id": "synthetic-recommendation",
+            "category": "Performance",
+            "impact": "Low",
+            "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.ContainerService/managedClusters/xray-demo"
+          }
+        ]
+      }
+    },
+    "relatedResources": {
+      "status": "ok",
+      "collectedAt": "2026-10-20T12:00:00.000Z",
+      "durationMs": 0,
+      "commands": [],
+      "data": {
+        "items": [
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.ContainerRegistry/registries/demoregistry",
+            "name": "demoregistry",
+            "type": "Microsoft.ContainerRegistry/registries",
+            "configuration": {
+              "adminUserEnabled": false,
+              "publicNetworkAccess": "Disabled",
+              "policies": {}
+            },
+            "supported": true,
+            "linkedResourceIds": []
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.KeyVault/vaults/demo-vault",
+            "name": "demo-vault",
+            "type": "Microsoft.KeyVault/vaults",
+            "configuration": {
+              "enableRbacAuthorization": true,
+              "enableSoftDelete": true,
+              "enablePurgeProtection": true,
+              "publicNetworkAccess": "Disabled"
+            },
+            "supported": true,
+            "linkedResourceIds": []
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.Storage/storageAccounts/demostorage",
+            "name": "demostorage",
+            "type": "Microsoft.Storage/storageAccounts",
+            "configuration": {
+              "supportsHttpsTrafficOnly": true,
+              "minimumTlsVersion": "TLS1_2",
+              "allowBlobPublicAccess": false,
+              "allowSharedKeyAccess": false
+            },
+            "supported": true,
+            "linkedResourceIds": []
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.Network/networkSecurityGroups/demo-nsg",
+            "name": "demo-nsg",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "configuration": {
+              "securityRules": []
+            },
+            "supported": true,
+            "linkedResourceIds": []
+          },
+          {
+            "id": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.Network/virtualNetworks/demo-vnet/subnets/aks",
+            "name": "aks",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "configuration": {
+              "addressPrefix": "10.10.0.0/24",
+              "networkSecurityGroupId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.Network/networkSecurityGroups/demo-nsg"
+            },
+            "supported": true,
+            "linkedResourceIds": [
+              "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-xray-demo/providers/Microsoft.Network/networkSecurityGroups/demo-nsg"
+            ]
+          }
+        ]
+      }
     }
   }
 }

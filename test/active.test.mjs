@@ -8,6 +8,7 @@ import { CommandError } from '../src/process.mjs';
 import { cleanupNamespace, httpProbe, marker, performLoad, runActive, startPortForward, syntheticResources, validateActiveOptions } from '../src/active.mjs';
 import { loadStatistics } from '../src/rules.mjs';
 import { assess, exitCode } from '../src/engine.mjs';
+import { defaultScope } from '../src/evidence.mjs';
 
 const realInput = () => ({ ...demoEvidence(), synthetic: false });
 const options = { suite: 'all', authorizeActive: true, confirmContext: 'demo-cloud',
@@ -68,6 +69,60 @@ test('authorization, exact context, real evidence and hard caps are required bef
   assert.throws(() => validateActiveOptions(options, demoEvidence()), /synthetic/);
   evidence.sources.context.data.server = 'https://other.example.invalid';
   assert.throws(() => validateActiveOptions(options, evidence), /verified/);
+});
+
+function tenantBoundInput(strategies = ['azure', 'kubernetes']) {
+  const evidence = realInput();
+  evidence.target.tenant = '10000000-0000-0000-0000-000000000001';
+  evidence.scope = defaultScope({ strategies, authorization: { readOnly: true },
+    authorizedSubscriptions: [evidence.target.subscription] });
+  evidence.sources.accounts = { status: 'ok', collectedAt: evidence.collectedAt, commands: [],
+    data: { items: [{ id: evidence.target.subscription, tenantId: evidence.target.tenant, state: 'Enabled' }] } };
+  return evidence;
+}
+
+test('ARM-only audit binding never grants active cross-plane authorization', () => {
+  const evidence = tenantBoundInput(['azure']);
+  evidence.sources.context = { status: 'notCollected', collectedAt: evidence.collectedAt, reason: 'Kubernetes strategy was not authorized.' };
+  assert.throws(() => validateActiveOptions(options, evidence), /context-to-ARM/);
+});
+
+test('tenant-bound active tests reverify account scope before any Kubernetes command or mutation', async () => {
+  const evidence = tenantBoundInput();
+  const mock = harness();
+  const runner = async (file, args, settings) => file === 'az'
+    ? { stdout: JSON.stringify({ id: evidence.target.subscription, tenantId: '10000000-0000-0000-0000-000000000002', state: 'Enabled' }) }
+    : mock.runner(file, args, settings);
+  await assert.rejects(() => runActive(evidence, { ...options, suite: 'security' }, { ...mock, runner }), /tenant|account/i);
+  assert.equal(mock.state.commands.length, 0);
+});
+
+test('tenant-bound active preflight records fresh account verification without retaining unrelated fields', async () => {
+  const input = tenantBoundInput();
+  const mock = harness();
+  const calls = [];
+  const runner = async (file, args, settings) => {
+    calls.push({ file, args });
+    return file === 'az'
+      ? { stdout: JSON.stringify({ id: input.target.subscription, tenantId: input.target.tenant, state: 'Enabled', token: 'NEVER_EXPORT' }) }
+      : mock.runner(file, args, settings);
+  };
+  const evidence = await runActive(input, { ...options, suite: 'security' }, { ...mock, runner });
+  assert.equal(calls[0].file, 'az');
+  assert.equal(evidence.sources.accounts.commands.length, 1);
+  assert.equal(evidence.sources.accounts.data.items[0].tenantId, input.target.tenant);
+  assert.ok(!JSON.stringify(evidence).includes('NEVER_EXPORT'));
+});
+
+test('an internally prepared canary run ID binds permission preflight to its exact future namespace', async () => {
+  const runId = '60000000-0000-4000-8000-000000000001';
+  const mock = harness();
+  const evidence = await runActive(realInput(), { ...options, suite: 'security' }, { ...mock, runIdFactory: () => runId });
+  assert.equal(evidence.activeRun.runId, runId);
+  assert.equal(evidence.activeRun.namespace, `aks-xray-${runId.slice(0, 18)}`);
+  const rejected = harness();
+  await assert.rejects(() => runActive(realInput(), options, { ...rejected, runIdFactory: () => 'outside-scope' }), /run ID/i);
+  assert.equal(rejected.state.commands.length, 0);
 });
 
 test('synthetic resources have bounded jobs, least privilege and no public exposure', () => {

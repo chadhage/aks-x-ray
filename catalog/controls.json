@@ -353,5 +353,110 @@
     "id": "ACT-004", "category": "active-validation", "title": "Validate restricted admission in the synthetic namespace", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeSecurity"], "sourceIds": ["aks-pod-security", "arc-security", "azure-testing-policy"], "failureType": "misconfiguration",
     "assertion": "A privileged synthetic pod is rejected by restricted Pod Security Admission on a server-side dry-run. Unrelated RBAC or connectivity errors cannot count as successful rejection.",
     "remediation": "Review the isolated namespace's PSA enforcement. This negative test does not certify existing namespaces or constitute exploitation or a full penetration test."
+  },
+  {
+    "id": "CP-004", "category": "control-plane", "title": "Match API access to the intended scenario", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-waf"], "failureType": "conflict",
+    "assertion": "Compare the observed private/restricted-public API configuration with the explicitly supplied scenario.apiAccess. Without an intended scenario this check is not applicable.",
+    "remediation": "Reconcile the approved administrative connectivity design with API access, DNS, authorized ranges and recovery access before making changes."
+  },
+  {
+    "id": "REL-006", "category": "reliability", "title": "Meet scenario-specific service replica requirements", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "namespaces"], "sourceIds": ["aks-reliability", "local-baseline"], "failureType": "deviation",
+    "assertion": "Nonzero Deployments and StatefulSets meet the operator-selected scenario.minimumReplicas. This is a declared capacity requirement, not an availability SLO.",
+    "remediation": "Validate the intended replication, application semantics, scaling bounds and capacity under failure."
+  },
+  {
+    "id": "REL-007", "category": "reliability", "title": "Meet scenario-specific cloud zone requirements", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["nodepools", "cluster"], "sourceIds": ["aks-waf", "aks-reliability"], "failureType": "deviation",
+    "assertion": "Operator-managed node pools declare at least scenario.minimumZones distinct availability zones. Automatic placement requires independent review.",
+    "remediation": "Check regional zone support, actual pod placement, storage constraints and the required number of failure domains."
+  },
+  {
+    "id": "SEC-011", "category": "security", "title": "Declare read-only Linux container root filesystems", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces", "nodes"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "missing",
+    "assertion": "Linux containers explicitly declare readOnlyRootFilesystem=true. Windows and ambiguous OS applicability are not scored as Linux adherence.",
+    "remediation": "Use read-only images and explicit writable volumes where compatible; document necessary exceptions."
+  },
+  {
+    "id": "SEC-012", "category": "security", "title": "Minimize automatic Kubernetes API-token mounts", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces", "serviceaccounts"], "sourceIds": ["aks-pod-security", "arc-security"], "failureType": "deviation",
+    "assertion": "Effective pod/service-account automountServiceAccountToken is false. An omitted value defaults to enabled only when the referenced service account was observed. Token values are never read.",
+    "remediation": "Disable unnecessary API tokens; use short-lived projected tokens and least-privilege permissions for workloads that need API access."
+  },
+  {
+    "id": "SEC-013", "category": "security", "title": "Review fail-closed pod-admission webhook declarations", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["validatingwebhooks", "mutatingwebhooks"], "sourceIds": ["aks-policy", "aks-security"], "failureType": "deviation",
+    "assertion": "Observed webhooks matching pod CREATE/UPDATE declare failurePolicy=Fail, including the Kubernetes default. Selectors, bypasses, webhook health and effective namespace coverage are not proven.",
+    "remediation": "Review security-versus-availability tradeoffs, webhook redundancy, timeouts, exemptions and separately authorized negative admission tests."
+  },
+  {
+    "id": "SEC-014", "category": "security", "title": "Enable the Defender for Containers subscription plan", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["defenderPricing"], "sourceIds": ["defender-containers", "aks-waf"], "failureType": "missing",
+    "assertion": "The Containers pricing plan explicitly reports Standard. This does not prove sensor health, billable coverage, image scan freshness or detection delivery.",
+    "remediation": "Review Defender coverage, cost and agent/agentless capabilities through an approved change; validate telemetry independently."
+  },
+  {
+    "id": "SEC-015", "category": "security", "title": "Inspect scoped Defender assessment states", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["defenderAssessments"], "sourceIds": ["defender-containers"], "failureType": "deviation",
+    "assertion": "Observed in-scope Defender assessments report Healthy rather than Unhealthy. Empty results require review; NotApplicable and unavailable states cannot become positive assurance.",
+    "remediation": "Investigate scoped unhealthy recommendations, scan recency, exemptions, sensor coverage and remediation ownership."
+  },
+  {
+    "id": "SEC-016", "category": "security", "title": "Use scenario-approved image registries", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-images", "arc-security"], "failureType": "conflict",
+    "assertion": "When scenario.allowedRegistries is nonempty, every image reference names an approved registry host. Approval does not establish signatures, CVEs, provenance or pull authorization.",
+    "remediation": "Use the approved registries and independently verify digest promotion, signatures, scanning, authentication and image-pull policy."
+  },
+  {
+    "id": "ID-007", "category": "identity", "title": "Review inherited Azure role assignments", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["roleAssignments"], "sourceIds": ["azure-rbac", "aks-security"],
+    "assertion": "Inventory explicit and inherited role-definition IDs, subjects and scopes without requesting directory names. Custom definitions, deny assignments, PIM, conditions and group membership require independent effective-access review.",
+    "remediation": "Review privileged grants and expiry with resource owners; validate effective permissions without collecting credentials or impersonating other identities."
+  },
+  {
+    "id": "ID-008", "category": "identity", "title": "Avoid broad Kubernetes grants to sensitive capabilities", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["roles", "rolebindings", "clusterroles", "clusterrolebindings"], "sourceIds": ["aks-security", "arc-security"], "failureType": "misconfiguration",
+    "assertion": "Anonymous, all-authenticated and all-service-account subjects are not bound to cluster-admin or observed roles granting sensitive secret, exec, proxy or RBAC-escalation capabilities. Unresolved referenced roles remain unknown.",
+    "remediation": "Replace broad subjects with approved least-privilege identities. Review aggregation, authorization mode, conditional access and every legitimate exception; no exploitability proof is inferred."
+  },
+  {
+    "id": "GOV-004", "category": "governance", "title": "Inspect scoped Azure Policy compliance states", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["policyStates"], "sourceIds": ["aks-policy"], "failureType": "deviation",
+    "assertion": "Observed policy states for the explicit target are Compliant rather than NonCompliant. Empty results and exemptions require review, while unknown states remain evidence gaps.",
+    "remediation": "Review the actual assignment, enforcement mode, exemption approval and evaluation recency. Collection never triggers a policy scan."
+  },
+  {
+    "id": "GOV-005", "category": "governance", "title": "Declare restricted Pod Security Admission for workload namespaces", "severity": "high", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["namespaces", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods"], "sourceIds": ["aks-psa", "arc-security"], "failureType": "missing",
+    "assertion": "Observed workload namespaces declare pod-security.kubernetes.io/enforce=restricted. Labels alone do not prove admission behavior, exemptions or existing-pod compliance.",
+    "remediation": "Assess compatibility, version pinning, approved system exceptions and separately authorized admission dry-runs before rollout."
+  },
+  {
+    "id": "CST-004", "category": "cost", "title": "Review scoped Azure Advisor recommendations", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["advisorRecommendations"], "sourceIds": ["azure-advisor", "aks-waf"],
+    "assertion": "Inventory existing Advisor recommendation IDs, categories and impact for the cluster and approved dependencies. Recommendations are not refreshed, and an empty list does not prove optimal cost or capacity.",
+    "remediation": "Validate relevance, observed utilization, workload objectives, potential savings and approved remediation with owners."
+  },
+  {
+    "id": "DEP-001", "category": "dependencies", "title": "Disable approved registry administrator accounts", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["relatedResources"], "sourceIds": ["azure-acr-security", "aks-images"], "failureType": "misconfiguration",
+    "assertion": "Approved linked ACR resources explicitly report adminUserEnabled=false. No registry credentials, images or repository content are fetched.",
+    "remediation": "Use managed identities or scoped Entra authentication and remove shared administrator credentials through an approved change."
+  },
+  {
+    "id": "DEP-002", "category": "dependencies", "title": "Protect approved vaults against accidental deletion", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["relatedResources"], "sourceIds": ["azure-keyvault-security"], "failureType": "missing",
+    "assertion": "Approved linked Key Vault resources explicitly enable soft delete and purge protection. Secret, certificate and key values are not requested.",
+    "remediation": "Review retention and recovery requirements, enable supported protection, and test recovery separately."
+  },
+  {
+    "id": "DEP-003", "category": "dependencies", "title": "Require secure transport and private blob defaults", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["relatedResources"], "sourceIds": ["azure-storage-security"], "failureType": "misconfiguration",
+    "assertion": "Approved linked storage accounts require HTTPS, minimum TLS 1.2 or newer, and disallow blob public access. This does not enumerate containers or prove effective data authorization.",
+    "remediation": "Review client compatibility, enforce secure transport, and disable unnecessary anonymous blob access without reading account keys or data."
+  },
+  {
+    "id": "DEP-004", "category": "dependencies", "title": "Avoid declared Internet-wide SSH and RDP ingress rules", "severity": "high", "platforms": ["cloud"], "mode": "passive", "requires": ["relatedResources"], "sourceIds": ["azure-nsg", "aks-network"], "failureType": "misconfiguration",
+    "assertion": "Approved NSGs have no observed inbound TCP/any Allow rule from all Internet addresses to ports/ranges containing 22 or 3389. Rule priority, reachability, JIT, destination attachment and effective rule unions require review.",
+    "remediation": "Use approved private administrative paths or tightly scoped sources, and review effective NSG/firewall decisions before changes."
+  },
+  {
+    "id": "DEP-005", "category": "dependencies", "title": "Declare subnet network-security-group associations", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["relatedResources"], "sourceIds": ["azure-nsg", "aks-network"], "failureType": "missing",
+    "assertion": "Approved observed subnet resources declare an NSG association. Association alone does not prove effective workload isolation or compensate for inappropriate rules.",
+    "remediation": "Reconcile subnet purpose, supported AKS network model, NSG/UDR/firewall design and documented exceptions."
+  },
+  {
+    "id": "DEP-006", "category": "dependencies", "title": "Use Entra RBAC on approved vault dependencies", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["relatedResources"], "sourceIds": ["azure-keyvault-security", "azure-rbac"], "failureType": "deviation",
+    "assertion": "Approved linked Key Vault resources explicitly report enableRbacAuthorization=true. Individual data-plane assignments and effective secret access remain independent review.",
+    "remediation": "Plan a least-privilege RBAC migration with application owners and validated recovery access; do not change the permission model implicitly."
+  },
+  {
+    "id": "DEP-007", "category": "dependencies", "title": "Review dependency inventory completeness and unassessed settings", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["relatedResources"], "sourceIds": ["aks-waf", "local-baseline"],
+    "assertion": "Inventory every projected approved dependency, including supported=false resource types. The implemented checks do not establish that all dependencies or all API properties have been discovered or securely configured.",
+    "remediation": "Reconcile resource IDs with application owners and architecture records. Supply missing approved IDs and review unsupported types, unscored properties, effective networking, data-plane permissions and recovery dependencies independently."
   }
 ]

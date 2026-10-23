@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Selectable AKS diagnosis strategies and stage approvals",
+  "description": "Analysis selection never grants collection or mutation permissions. Runtime checks additionally validate approval dates, exact contexts, scope, fresh permission matrices and owned cleanup.",
+  "type": "object",
+  "required": ["strategies"],
+  "properties": {
+    "strategies": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["configuration", "graph", "exposure", "attack-paths", "validation"] } },
+    "stages": { "type": "array", "minItems": 1, "uniqueItems": true, "contains": { "const": "passive" }, "items": { "enum": ["passive", "non-mutating", "intrusive"] }, "default": ["passive"] },
+    "approvals": {
+      "type": "object",
+      "properties": {
+        "nonMutating": { "$ref": "#/$defs/approval" },
+        "intrusive": { "$ref": "#/$defs/approval" }
+      },
+      "additionalProperties": false
+    },
+    "maxEvidenceAgeHours": { "type": "number", "exclusiveMinimum": 0, "maximum": 8760, "default": 24 },
+    "maxPaths": { "type": "integer", "minimum": 1, "maximum": 10000, "default": 200 },
+    "maxGraphNodes": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 20000 },
+    "maxGraphEdges": { "type": "integer", "minimum": 1, "maximum": 200000, "default": 50000 },
+    "maxInventoryResources": { "type": "integer", "minimum": 1, "maximum": 50000, "default": 5000 },
+    "maxValidationChecks": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "approval": {
+      "type": "object",
+      "properties": {
+        "approved": { "type": "boolean", "default": false },
+        "contexts": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "namespaces": { "type": "array", "uniqueItems": true, "items": { "type": "string", "maxLength": 63, "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" } },
+        "tests": { "type": "array", "uniqueItems": true, "items": { "enum": ["authorization-review", "admission-dry-run", "intrusive-preflight"] } },
+        "suites": { "type": "array", "uniqueItems": true, "items": { "enum": ["connectivity", "end-to-end", "load", "security"] } },
+        "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "requests": { "type": "integer", "minimum": 1, "maximum": 200 },
+            "concurrency": { "type": "integer", "minimum": 1, "maximum": 4 },
+            "durationSeconds": { "type": "number", "minimum": 1, "maximum": 30 },
+            "latencyBudgetMs": { "type": "number", "exclusiveMinimum": 0 },
+            "errorBudgetPercent": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "allOf": [{
+        "if": { "required": ["approved"], "properties": { "approved": { "const": true } } },
+        "then": { "required": ["contexts", "expiresAt"], "properties": { "contexts": { "minItems": 1 }, "expiresAt": { "type": "string" } } }
+      }],
+      "additionalProperties": false
+    }
+  }
+}

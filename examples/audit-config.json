@@ -1,0 +1,47 @@
+{
+  "$schema": "../schemas/audit-config.schema.json",
+  "tenant": "<tenant-guid>",
+  "subscriptions": ["<workload-subscription-guid>", "<dependency-subscription-guid>"],
+  "targetSelection": "named",
+  "authorization": { "readOnly": false },
+  "strategies": ["azure", "kubernetes", "iam", "iam-inventory", "resource-graph", "policy", "defender", "advisor", "dependencies"],
+  "scenario": {
+    "name": "<intended-workload-scenario>",
+    "profile": "production",
+    "apiAccess": "private",
+    "minimumReplicas": 3,
+    "minimumZones": 3,
+    "allowedRegistries": ["<approved-registry-host>"],
+    "businessCriticality": "high",
+    "dataSensitivity": "confidential",
+    "applicationExposure": "public",
+    "assumedCompromise": []
+  },
+  "targets": [
+    {
+      "platform": "cloud",
+      "subscription": "<workload-subscription-guid>",
+      "resourceGroup": "<resource-group>",
+      "cluster": "<cluster-name>",
+      "context": "<existing-kubernetes-context>"
+    }
+  ],
+  "namespaces": ["<workload-namespace>"],
+  "relatedResourceIds": [],
+  "maxRelatedResources": 200,
+  "assessment": {
+    "strategies": ["graph", "exposure", "attack-paths"],
+    "stages": ["passive"],
+    "maxEvidenceAgeHours": 24,
+    "maxPaths": 200,
+    "maxGraphNodes": 20000,
+    "maxGraphEdges": 50000,
+    "maxInventoryResources": 5000,
+    "maxValidationChecks": 100,
+    "approvals": {
+      "nonMutating": { "approved": false, "contexts": [], "namespaces": [], "tests": [], "expiresAt": null },
+      "intrusive": { "approved": false, "contexts": [], "suites": [], "expiresAt": null,
+        "limits": { "requests": 40, "concurrency": 2, "durationSeconds": 10, "latencyBudgetMs": 2000, "errorBudgetPercent": 0 } }
+    }
+  }
+}

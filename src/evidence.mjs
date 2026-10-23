@@ -1,5 +1,6 @@
 import { categories, selectControls, toolVersion, catalogVersion, catalogDigest } from './catalog.mjs';
 import { activeSources, isObject, kubernetesResources, namespacedSources, sourceIds, workloadSources } from './projection.mjs';
+import { normalizeScenario, validateIdentityScope, validateScopeExtensions } from './scope.mjs';
 
 export const schemaVersion = '1.0';
 export const systemNamespaces = ['kube-system', 'kube-public', 'kube-node-lease'];
@@ -19,6 +20,7 @@ export function validateScope(scope) {
   if (scope.namespaces?.some((value) => scope.excludedNamespaces.includes(value))) {
     throw new Error('An explicitly selected namespace is excluded. Use --include-system if you intend to assess system namespaces.');
   }
+  validateScopeExtensions(scope);
 }
 
 export function createEvidence(target, scope, now = new Date()) {
@@ -64,6 +66,7 @@ export function validateEvidence(value) {
   }
   if (!Number.isFinite(Date.parse(value.collectedAt))) throw new Error('Invalid collection timestamp.');
   validateScope(value.scope);
+  validateIdentityScope(value.target, value.scope);
   if (!isObject(value.sources)) throw new Error('Evidence sources must be an object.');
   for (const [id, record] of Object.entries(value.sources)) {
     if (!sourceIds.includes(id)) throw new Error(`Unknown evidence source: ${id}`);
@@ -89,6 +92,18 @@ export function defaultScope(options = {}) {
     excludedNamespaces: options.includeSystem ? [] : [...systemNamespaces],
     profile: options.profile ?? 'production'
   };
+  if (options.scenario !== undefined) scope.scenario = normalizeScenario(options.scenario, scope.profile);
+  if (options.assessmentStrategies !== undefined) {
+    scope.assessmentStrategies = [...options.assessmentStrategies];
+    scope.maxInventoryResources = options.maxInventoryResources ?? 5000;
+  }
+  if (options.strategies !== undefined || options.authorization !== undefined) {
+    Object.assign(scope, {
+      strategies: options.strategies, authorization: options.authorization,
+      authorizedSubscriptions: options.authorizedSubscriptions, relatedResourceIds: options.relatedResourceIds ?? [],
+      maxRelatedResources: options.maxRelatedResources ?? 200
+    });
+  }
   validateScope(scope);
-  return scope;
+  return structuredClone(scope);
 }

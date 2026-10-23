@@ -1,7 +1,7 @@
 export const workloadSources = ['deployments', 'statefulsets', 'daemonsets', 'jobs', 'cronjobs', 'pods'];
 export const namespacedSources = new Set([
   ...workloadSources, 'services', 'endpointslices', 'ingresses', 'networkpolicies',
-  'pdbs', 'pvcs', 'hpas', 'serviceaccounts', 'resourcequotas', 'limitranges', 'events'
+  'pdbs', 'pvcs', 'hpas', 'serviceaccounts', 'resourcequotas', 'limitranges', 'events', 'roles', 'rolebindings'
 ]);
 export const kubernetesResources = {
   nodes: 'nodes', namespaces: 'namespaces', deployments: 'deployments.apps',
@@ -12,12 +12,18 @@ export const kubernetesResources = {
   pvcs: 'persistentvolumeclaims', pvs: 'persistentvolumes', storageclasses: 'storageclasses.storage.k8s.io',
   hpas: 'horizontalpodautoscalers.autoscaling', serviceaccounts: 'serviceaccounts',
   resourcequotas: 'resourcequotas', limitranges: 'limitranges', events: 'events',
-  clusterrolebindings: 'clusterrolebindings.rbac.authorization.k8s.io'
+  clusterrolebindings: 'clusterrolebindings.rbac.authorization.k8s.io',
+  roles: 'roles.rbac.authorization.k8s.io', rolebindings: 'rolebindings.rbac.authorization.k8s.io',
+  clusterroles: 'clusterroles.rbac.authorization.k8s.io',
+  validatingwebhooks: 'validatingwebhookconfigurations.admissionregistration.k8s.io',
+  mutatingwebhooks: 'mutatingwebhookconfigurations.admissionregistration.k8s.io'
 };
+export const supplementalSources = ['accounts', 'roleAssignments', 'policyStates', 'defenderPricing',
+  'defenderAssessments', 'advisorRecommendations', 'relatedResources', 'roleDefinitions', 'federatedCredentials', 'resourceGraph'];
 export const activeSources = ['activeConnectivity', 'activeE2E', 'activeLoad', 'activeSecurity'];
 export const sourceIds = [
   'context', 'cluster', 'nodepools', 'diagnostics', 'maintenance',
-  ...Object.keys(kubernetesResources), ...activeSources
+  ...Object.keys(kubernetesResources), ...supplementalSources, ...activeSources
 ];
 
 export function isObject(value) {
@@ -112,6 +118,21 @@ function workload(raw) {
   };
 }
 
+function armIdentity(value) {
+  if (!isObject(value)) return undefined;
+  return { ...pick(value, ['type', 'principalId', 'tenantId']),
+    ...(isObject(value.userAssignedIdentities) ? { userAssignedIdentities: Object.fromEntries(
+      Object.entries(value.userAssignedIdentities).map(([id, identity]) => [id, pick(identity, ['principalId', 'clientId']) ?? {}])
+    ) } : {}) };
+}
+
+function issuer(value) {
+  if (value === undefined) return undefined;
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('Issuer must be HTTPS without credentials or query parameters.');
+  return value;
+}
+
 function cluster(raw, platform) {
   if (!isObject(raw)) throw new Error('Expected ARM cluster metadata.');
   if (typeof raw.name !== 'string' || typeof raw.id !== 'string') throw new Error('ARM cluster name and resource ID are required.');
@@ -132,11 +153,22 @@ function cluster(raw, platform) {
     enableRBAC: p.enableRBAC ?? p.enableRbac,
     sku: pick(raw.sku ?? p.sku, ['name', 'tier']),
     aadProfile: pick(p.aadProfile, ['managed', 'enableAzureRbac', 'enableAzureRBAC']),
-    identity: pick(raw.identity ?? p.identity, ['type']),
+    identity: armIdentity(raw.identity ?? p.identity),
+    identityProfile: { kubeletidentity: pick(p.identityProfile?.kubeletidentity ?? p.identityProfile?.kubeletIdentity, ['resourceId', 'objectId', 'clientId']) },
+    nodeResourceGroup: p.nodeResourceGroup,
+    linkedResourceIds: [...new Set([
+      p.diskEncryptionSetId ?? p.diskEncryptionSetID, p.apiServerAccessProfile?.subnetId,
+      ...Object.keys((raw.identity ?? p.identity)?.userAssignedIdentities ?? {}),
+      p.identityProfile?.kubeletidentity?.resourceId ?? p.identityProfile?.kubeletIdentity?.resourceId,
+      ...(p.agentPoolProfiles ?? []).flatMap((pool) => [pool.vnetSubnetId ?? pool.vnetSubnetID, pool.podSubnetId ?? pool.podSubnetID]),
+      p.addonProfiles?.omsagent?.config?.logAnalyticsWorkspaceResourceID,
+      ...(p.networkProfile?.loadBalancerProfile?.effectiveOutboundIPs ?? p.networkProfile?.loadBalancerProfile?.effectiveOutboundIps ?? []).map((value) => value.id),
+      ...(p.networkProfile?.natGatewayProfile?.effectiveOutboundIPs ?? p.networkProfile?.natGatewayProfile?.effectiveOutboundIps ?? []).map((value) => value.id)
+    ].filter((value) => typeof value === 'string' && value.length))],
     apiServerAccessProfile: pick(p.apiServerAccessProfile, ['enablePrivateCluster', 'authorizedIpRanges', 'authorizedIPRanges']),
     networkProfile: pick(p.networkProfile, ['networkPlugin', 'networkPluginMode', 'networkPolicy', 'networkDataplane',
       'podCidr', 'podCidrs', 'serviceCidr', 'serviceCidrs', 'dnsServiceIP', 'outboundType', 'loadBalancerSku']),
-    oidcIssuerProfile: pick(p.oidcIssuerProfile, ['enabled']),
+    oidcIssuerProfile: { ...pick(p.oidcIssuerProfile, ['enabled']), issuerUrl: issuer(p.oidcIssuerProfile?.issuerUrl ?? p.oidcIssuerProfile?.issuerURL) },
     securityProfile: {
       workloadIdentity: pick(p.securityProfile?.workloadIdentity, ['enabled']),
       defender: { securityMonitoring: pick(p.securityProfile?.defender?.securityMonitoring, ['enabled']) }
@@ -160,6 +192,50 @@ export function projectSource(id, raw, platform = 'cloud') {
       throw new Error('The kubeconfig server must be an HTTPS endpoint without credentials or query parameters.');
     }
     data = { server: server.origin + (server.pathname === '/' ? '' : server.pathname) };
+  } else if (id === 'accounts') {
+    if (!isObject(raw)) throw new Error('Expected account metadata.');
+    data = { items: [pick(raw, ['id', 'tenantId', 'state'])] };
+  } else if (id === 'defenderPricing') {
+    if (!isObject(raw)) throw new Error('Expected Defender plan metadata.');
+    data = { items: [{ ...pick(raw, ['name', 'pricingTier', 'subPlan']),
+      extensions: raw.extensions?.map((extension) => pick(extension, ['name', 'isEnabled'])) }] };
+  } else if (id === 'roleAssignments') {
+    data = { items: list(raw).map((value) => {
+      const p = value.properties ?? value;
+      return { ...pick(value, ['id', 'name']), ...pick(p, ['scope', 'roleDefinitionId', 'principalId', 'principalType', 'conditionVersion']),
+        hasCondition: typeof p.condition === 'string' ? p.condition.trim().length > 0
+          : p.condition == null && p.conditionVersion == null ? false : null };
+    }) };
+  } else if (id === 'roleDefinitions') {
+    data = { items: list(raw).map((value) => {
+      const p = value.properties ?? value;
+      return { ...pick(value, ['id', 'name']), ...pick(p, ['roleName', 'roleType', 'assignableScopes']),
+        permissions: p.permissions?.map((permission) => pick(permission, ['actions', 'notActions', 'dataActions', 'notDataActions'])) };
+    }) };
+  } else if (id === 'federatedCredentials') {
+    data = { items: list(raw).map((value) => {
+      const p = value.properties ?? value;
+      return { ...pick(value, ['id', 'name']), ...pick(p, ['subject', 'audiences']), issuer: issuer(p.issuer) };
+    }) };
+  } else if (id === 'resourceGraph') {
+    data = { items: (Array.isArray(raw?.data) ? raw.data : list(raw)).map(projectArmResource) };
+  } else if (id === 'policyStates') {
+    data = { items: list(raw).map((value) => pick(value, ['resourceId', 'complianceState', 'timestamp',
+      'policyAssignmentId', 'policyDefinitionId', 'policyDefinitionReferenceId'])) };
+  } else if (id === 'defenderAssessments') {
+    data = { items: list(raw).map((value) => {
+      const p = value.properties ?? value;
+      return { ...pick(value, ['id', 'name']), ...pick(p, ['displayName']),
+        status: pick(p.status, ['code']), resourceId: p.resourceDetails?.id ?? p.resourceDetails?.Id };
+    }) };
+  } else if (id === 'advisorRecommendations') {
+    data = { items: list(raw).map((value) => {
+      const p = value.properties ?? value;
+      return { ...pick(value, ['id', 'name']), ...pick(p, ['category', 'impact', 'recommendationTypeId']),
+        resourceId: p.resourceMetadata?.resourceId };
+    }) };
+  } else if (id === 'relatedResources') {
+    data = { items: (Array.isArray(raw) ? raw : [raw]).map(projectArmResource) };
   } else if (id === 'nodepools') {
     data = { items: list(raw).map((pool) => pick(pool, [
       'name', 'mode', 'count', 'vmSize', 'osType', 'osSKU', 'osSku', 'nodeTaints',
@@ -223,18 +299,81 @@ function projectResource(id, raw) {
       return { ...base, minReplicas: spec.minReplicas ?? 1, maxReplicas: spec.maxReplicas,
         scaleTargetRef: pick(spec.scaleTargetRef, ['kind', 'name']),
         conditions: raw.status?.conditions?.map((c) => pick(c, ['type', 'status', 'reason'])) };
-    case 'serviceaccounts': return { ...base, automountServiceAccountToken: raw.automountServiceAccountToken };
+    case 'serviceaccounts': return { ...base, automountServiceAccountToken: raw.automountServiceAccountToken,
+      workloadIdentity: { clientId: raw.metadata.annotations?.['azure.workload.identity/client-id'],
+        tenantId: raw.metadata.annotations?.['azure.workload.identity/tenant-id'] } };
     case 'resourcequotas': return { ...base, hard: spec.hard };
     case 'limitranges': return { ...base, limits: spec.limits };
     case 'events':
       return { ...base, type: raw.type, reason: raw.reason, count: raw.count,
         lastTimestamp: raw.lastTimestamp ?? raw.eventTime,
         involvedObject: pick(raw.involvedObject, ['kind', 'name', 'namespace']) };
+    case 'roles':
+    case 'clusterroles':
+      return { ...base, rules: raw.rules?.map((rule) => pick(rule, ['apiGroups', 'resources', 'verbs', 'resourceNames', 'nonResourceURLs'])) };
+    case 'validatingwebhooks':
+    case 'mutatingwebhooks':
+      return { ...base, webhooks: raw.webhooks?.map((webhook) => ({
+        ...pick(webhook, ['name', 'failurePolicy', 'timeoutSeconds', 'sideEffects', 'matchPolicy', 'namespaceSelector', 'objectSelector']),
+        rules: webhook.rules?.map((rule) => pick(rule, ['apiGroups', 'apiVersions', 'resources', 'operations', 'scope'])),
+        service: pick(webhook.clientConfig?.service, ['name', 'namespace', 'port'])
+      })) };
+    case 'rolebindings':
     case 'clusterrolebindings':
       return { ...base, roleRef: pick(raw.roleRef, ['kind', 'name', 'apiGroup']),
         subjects: raw.subjects?.map((s) => pick(s, ['kind', 'name', 'namespace'])) };
     default: throw new Error(`Missing projection for ${id}`);
   }
+}
+
+function projectArmResource(raw) {
+  if (!isObject(raw) || typeof raw.id !== 'string' || typeof raw.type !== 'string' || typeof raw.name !== 'string') {
+    throw new Error('Related resource metadata requires an explicit resource ID, type and name.');
+  }
+  const p = raw.properties ?? raw;
+  const type = raw.type.toLowerCase();
+  let configuration;
+  let links = [];
+  if (type === 'microsoft.containerregistry/registries') {
+    configuration = { ...pick(p, ['adminUserEnabled', 'publicNetworkAccess', 'zoneRedundancy', 'dataEndpointEnabled']),
+      networkRuleSet: pick(p.networkRuleSet, ['defaultAction']), policies: {
+        trustPolicy: pick(p.policies?.trustPolicy, ['status']), quarantinePolicy: pick(p.policies?.quarantinePolicy, ['status']),
+        retentionPolicy: pick(p.policies?.retentionPolicy, ['status', 'days'])
+      } };
+  } else if (type === 'microsoft.keyvault/vaults') {
+    configuration = { ...pick(p, ['enableRbacAuthorization', 'enableSoftDelete', 'enablePurgeProtection',
+      'softDeleteRetentionInDays', 'publicNetworkAccess']), networkAcls: pick(p.networkAcls, ['defaultAction', 'bypass']) };
+  } else if (type === 'microsoft.storage/storageaccounts') {
+    configuration = { ...pick(p, ['supportsHttpsTrafficOnly', 'minimumTlsVersion', 'allowBlobPublicAccess',
+      'allowSharedKeyAccess', 'publicNetworkAccess']), networkAcls: pick(p.networkAcls, ['defaultAction', 'bypass']),
+    encryption: pick(p.encryption, ['keySource', 'requireInfrastructureEncryption']) };
+  } else if (type === 'microsoft.network/virtualnetworks/subnets') {
+    configuration = { ...pick(p, ['addressPrefix', 'addressPrefixes', 'privateEndpointNetworkPolicies', 'privateLinkServiceNetworkPolicies']),
+      networkSecurityGroupId: p.networkSecurityGroup?.id, routeTableId: p.routeTable?.id,
+      natGatewayId: p.natGateway?.id, serviceEndpoints: p.serviceEndpoints?.map((endpoint) => pick(endpoint, ['service', 'locations'])) };
+    links = [p.networkSecurityGroup?.id, p.routeTable?.id, p.natGateway?.id];
+  } else if (type === 'microsoft.network/networksecuritygroups') {
+    configuration = { securityRules: p.securityRules?.map((rule) => ({
+      name: rule.name, ...pick(rule.properties ?? rule, ['priority', 'direction', 'access', 'protocol',
+        'sourceAddressPrefix', 'sourceAddressPrefixes', 'destinationAddressPrefix', 'destinationAddressPrefixes',
+        'sourcePortRange', 'sourcePortRanges', 'destinationPortRange', 'destinationPortRanges'])
+    })) };
+  } else if (type === 'microsoft.network/routetables') {
+    configuration = { disableBgpRoutePropagation: p.disableBgpRoutePropagation,
+      routes: p.routes?.map((route) => ({ name: route.name, ...pick(route.properties ?? route, ['addressPrefix', 'nextHopType', 'nextHopIpAddress']) })) };
+  } else if (type === 'microsoft.network/publicipaddresses') {
+    configuration = { ...pick(p, ['publicIPAllocationMethod', 'publicIPAddressVersion', 'ipAddress', 'idleTimeoutInMinutes']), sku: pick(raw.sku, ['name', 'tier']) };
+  } else if (type === 'microsoft.operationalinsights/workspaces') {
+    configuration = pick(p, ['retentionInDays', 'publicNetworkAccessForIngestion', 'publicNetworkAccessForQuery']);
+  } else if (type === 'microsoft.compute/diskencryptionsets') {
+    configuration = pick(p, ['encryptionType', 'rotationToLatestKeyVersionEnabled']);
+  } else if (type === 'microsoft.managedidentity/userassignedidentities') {
+    configuration = pick(p, ['principalId', 'clientId', 'tenantId']);
+  }
+  links.push(...Object.keys(raw.identity?.userAssignedIdentities ?? {}));
+  return { ...pick(raw, ['id', 'name', 'type', 'location', 'subscriptionId', 'resourceGroup']), identity: armIdentity(raw.identity), configuration: configuration ?? {},
+    supported: configuration !== undefined,
+    linkedResourceIds: links.filter((id) => typeof id === 'string' && id.length) };
 }
 
 export function inScope(namespace, scope) {

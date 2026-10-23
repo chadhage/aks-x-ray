@@ -53,13 +53,22 @@ export function commandFailure(error) {
   };
 }
 
-export async function runCommand(file, args, { input, timeoutMs = 30_000, maxBytes = 20 * 1024 * 1024, signal } = {}) {
+export function parseCommandJson(stdout) {
+  try { return JSON.parse(stdout); }
+  catch (error) {
+    if (error instanceof SyntaxError) throw new CommandError('INVALID_JSON', commandFailure(error).message);
+    throw error;
+  }
+}
+
+export async function runCommand(file, args, { input, timeoutMs = 30_000, maxBytes = 20 * 1024 * 1024, signal, interactive = false, env = {} } = {}) {
   if (signal?.aborted) throw new CommandError('ABORTED', `${file} was cancelled before it started.`);
+  if (interactive && input !== undefined) throw new Error('Interactive commands cannot receive captured input.');
   const resolved = invocation(file, args);
   return new Promise((resolve, reject) => {
     const child = spawn(resolved.file, resolved.args, {
-      shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...resolved.env, AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no', AZURE_CORE_COLLECT_TELEMETRY: 'false' }
+      shell: false, windowsHide: true, stdio: interactive ? ['inherit', 'inherit', 'inherit'] : ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, ...resolved.env, ...env, AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no', AZURE_CORE_COLLECT_TELEMETRY: 'false' }
     });
     let stdout = '';
     let stderr = '';
@@ -85,10 +94,10 @@ export async function runCommand(file, args, { input, timeoutMs = 30_000, maxByt
         else stderr += chunk;
       }
     };
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => append('stdout', chunk));
-    child.stderr.on('data', (chunk) => append('stderr', chunk));
+    child.stdout?.setEncoding('utf8');
+    child.stderr?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk) => append('stdout', chunk));
+    child.stderr?.on('data', (chunk) => append('stderr', chunk));
     child.on('error', (error) => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', abort);
@@ -101,12 +110,12 @@ export async function runCommand(file, args, { input, timeoutMs = 30_000, maxByt
       else if (exitCode !== 0) reject(new CommandError('COMMAND_FAILED', `${file} exited with code ${exitCode}.`, { stderr, exitCode }));
       else resolve({ stdout, stderr, exitCode });
     });
-    child.stdin.on('error', (error) => {
+    child.stdin?.on('error', (error) => {
       if (error.code !== 'EPIPE') {
         failure = new CommandError('STDIN', `Unable to send input to ${file}: ${error.code}.`);
         child.kill();
       }
     });
-    child.stdin.end(input);
+    child.stdin?.end(input);
   });
 }
