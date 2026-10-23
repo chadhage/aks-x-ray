@@ -2,7 +2,7 @@
   "name": "aks-x-ray",
   "version": "0.1.0",
   "private": true,
-  "description": "Evidence-first AKS and AKS on Azure Local assessment with an offline microsite.",
+  "description": "Collect and assess AKS and AKS on Azure Local configuration; write HTML and JSON reports.",
   "type": "module",
   "engines": { "node": ">=22" },
   "bin": { "aks-xray": "bin/aks-xray.mjs" },

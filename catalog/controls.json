@@ -156,7 +156,7 @@
   },
   {
     "id": "WK-001", "category": "workloads", "title": "Declare positive CPU and memory requests", "severity": "medium", "platforms": ["cloud", "local"], "mode": "passive", "requires": ["deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "pods", "namespaces"], "sourceIds": ["aks-resources", "arc-security"], "failureType": "missing",
-    "assertion": "Regular and init application containers have positive CPU and memory requests. Requests are not a rightsizing measurement.",
+    "assertion": "Regular and init application containers have positive CPU and memory requests. Requests do not measure actual resource use.",
     "remediation": "Set requests using representative observed demand and workload scheduling requirements."
   },
   {
@@ -242,7 +242,7 @@
   {
     "id": "OBS-003", "category": "observability", "title": "Enable cloud Container insights collection", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-monitor"], "failureType": "missing",
     "assertion": "The omsagent add-on is explicitly enabled. This flag does not prove log ingestion or retention.",
-    "remediation": "Enable the supported logging integration or document an equivalent stack; validate end-to-end telemetry."
+    "remediation": "Enable the supported logging integration or document an alternative. Check that recent logs reach the configured destination."
   },
   {
     "id": "OBS-004", "category": "observability", "title": "Review warning-event reasons", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": ["events", "namespaces"], "sourceIds": ["aks-monitor", "local-baseline"],
@@ -250,7 +250,7 @@
     "remediation": "Correlate event reasons and timestamps with metrics, operational history and approved log queries."
   },
   {
-    "id": "OBS-005", "category": "observability", "title": "Verify actionable alerts and SLO telemetry", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-monitor", "local-baseline"],
+    "id": "OBS-005", "category": "observability", "title": "Review alert delivery and SLO telemetry", "severity": "high", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-monitor", "local-baseline"],
     "assertion": "Static cluster inventory does not prove alert delivery, dashboard correctness, telemetry freshness or SLO compliance.",
     "remediation": "Attach recent log/metric queries, rule coverage, retention settings, ownership and an alert delivery test."
   },
@@ -280,9 +280,9 @@
     "remediation": "Correct autoscaler limits and verify Azure quota and upgrade/failure headroom."
   },
   {
-    "id": "CST-003", "category": "cost", "title": "Verify rightsizing and capacity economics", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-waf", "local-baseline"],
+    "id": "CST-003", "category": "cost", "title": "Review resource sizing and capacity costs", "severity": "medium", "platforms": ["cloud", "local"], "mode": "manual", "requires": [], "sourceIds": ["aks-waf", "local-baseline"],
     "assertion": "Requests, node counts and synthetic smoke latency cannot prove utilization, savings, throughput limits or production capacity.",
-    "remediation": "Attach representative CPU/memory/storage/network percentiles, throttling, pricing/commitment evidence, workload SLOs and a separately approved load campaign."
+    "remediation": "Attach representative CPU/memory/storage/network percentiles, throttling, pricing/commitment evidence, workload SLOs and separately approved load test results."
   },
   {
     "id": "LC-001", "category": "lifecycle", "title": "Configure cloud Kubernetes automatic upgrades", "severity": "medium", "platforms": ["cloud"], "mode": "passive", "requires": ["cluster"], "sourceIds": ["aks-security", "aks-reliability"], "failureType": "missing",
@@ -340,7 +340,7 @@
     "remediation": "Review test pod readiness, DNS/LocalDNS, service routing, approved test policies and image access. This does not validate all application network paths."
   },
   {
-    "id": "ACT-002", "category": "active-validation", "title": "Exercise the synthetic HTTP end-to-end path", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeE2E"], "sourceIds": ["aks-reliability", "azure-cli-image"], "failureType": "deviation",
+    "id": "ACT-002", "category": "active-validation", "title": "Send HTTP requests through the synthetic service port-forward", "severity": "medium", "platforms": ["cloud", "local"], "mode": "active", "requires": ["activeE2E"], "sourceIds": ["aks-reliability", "azure-cli-image"], "failureType": "deviation",
     "assertion": "Three client requests through loopback-only kubectl port-forward return the expected marker. External ingress, WAF and TLS are not tested.",
     "remediation": "Investigate the synthetic workload and API port-forward path; separately authorize application-specific transaction tests."
   },

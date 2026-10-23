@@ -11,7 +11,7 @@
 7. Evaluate explicit assertions, preserving observation timestamps, JSON pointers and commands.
 8. Write JSON, Markdown, a standalone HTML report and SHA-256 hashes.
 
-Endpoint equality is a useful guard against accidental cross-cluster evidence mixing, **not cryptographic cluster attestation**. Existing kubeconfig trust, DNS, Azure authentication and endpoint certificates remain prerequisites.
+Matching endpoint hostnames helps detect inventory from different clusters. It is **not cryptographic proof of cluster identity**. Existing kubeconfig trust, DNS, Azure authentication and endpoint certificates remain prerequisites.
 
 ## Status contract
 
@@ -25,15 +25,15 @@ Endpoint equality is a useful guard against accidental cross-cluster evidence mi
 | `notApplicable` | Platform, profile or observed resource set excludes the check | No; excluded from applicable-control denominator |
 | `notRun` | Active test deliberately not executed | No; included as an applicable evidence gap |
 
-A partially observed control can report a known failure while also setting `incomplete=true`. It is then excluded from complete evidence coverage and produces exit code 2. A single known deviation is actionable without implying complete visibility.
+A partially observed control can report a known failure while also setting `incomplete=true`. It is then excluded from complete evidence coverage and produces exit code 2. A known failure can be investigated even when some observations are unavailable.
 
 Classifications describe the evidence: `adherence`, `deviation`, `conflict`, `missing`, `misconfiguration`, `requires-context` or `insufficient-evidence`. Severity is an operational triage priority, **not CVSS**, exploitability proof or Microsoft severity.
 
 ## Recommendation versus universal requirement
 
-Controls operationalize Microsoft recommendations. They do not convert every architectural preference into a universal requirement. Private versus restricted public API access, managed versus alternative telemetry, dedicated service accounts, CPU limits, image pinning, availability zones and single-instance applications can require contextual decisions.
+Each control turns a selected Microsoft recommendation into a check. A recommendation is not necessarily a requirement for every cluster. Private versus restricted public API access, managed versus alternative telemetry, dedicated service accounts, CPU limits, image pinning, availability zones and single-instance applications can require contextual decisions.
 
-A failure should trigger an owner review and, where appropriate, a documented exception with compensating controls. The initial version deliberately does not allow exception files to silently turn a failed observation green. Manual controls do not become passes based on an unverified questionnaire.
+A failure should trigger an owner review and, where appropriate, a documented exception with compensating controls. This version does not use exception files to convert a failed result into a pass. Manual controls do not become passes based on an unverified questionnaire.
 
 Cloud guidance is not automatically a Local requirement. Cloud-only controls are marked not applicable on Local; the Local baseline and Arc security guidance provide the appropriate architecture context. Linux-specific security checks exclude explicitly Windows workloads. OS is derived from pod OS/node selectors or observed pod-to-node placement; ambiguous applicability stays unknown.
 
@@ -49,9 +49,9 @@ An empty list can make a workload-specific check not applicable; it cannot estab
 
 Default collection does not request Secrets, ConfigMaps, application logs, mounted files, environment values, container commands, arbitrary annotations or kubeconfig credentials. Event messages and probe HTTP headers are omitted. Service-account token references and hostPath locations are omitted. Labels are retained to evaluate PDB/policy matching and can themselves contain sensitive identifiers; projection is **not a guarantee that all possible secrets have been removed from badly labelled resources**.
 
-Raw stdout is held transiently in the collector process and projected before persistence. Raw stderr is not written to artifacts; errors retain a class, exit code and actionable instruction to rerun the recorded command locally. Malformed JSON is explicit without copying its potentially sensitive contents.
+Raw stdout is held transiently in the collector process and projected before persistence. Raw stderr is not written to artifacts; errors retain a class, exit code and instruction to rerun the recorded command locally. Malformed JSON is reported without copying its potentially sensitive contents.
 
-Artifacts are private operational inventory. POSIX creation modes are restrictive; Windows ACLs are inherited. Do not publish real reports with a public microsite, paste them into public issues, or commit them. The committed microsite contains only fabricated sample data.
+Artifacts contain private cluster inventory. POSIX creation modes are restrictive; Windows ACLs are inherited. Do not publish real reports on a public website, paste them into public issues, or commit them. Committed report examples use only synthetic data.
 
 ## Reproducibility and limitations
 

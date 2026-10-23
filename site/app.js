@@ -7,8 +7,8 @@
   const labels = { pass: 'Pass', fail: 'Fail', review: 'Review', unknown: 'Unknown', error: 'Error', notApplicable: 'Not applicable', notRun: 'Not run' };
   const modeLabels = { passive: 'Read-only', manual: 'Manual review', active: 'Opt-in active' };
   const statusOrder = ['fail', 'error', 'unknown', 'review', 'notRun', 'pass', 'notApplicable'];
-  let report = embedded.assessment;
-  let view = 'assessment';
+  let report = null;
+  let view = 'getting-started';
   const byId = (id) => document.getElementById(id);
   const element = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -83,6 +83,15 @@
     return Object.fromEntries(Object.keys(labels).map((status) => [status, candidate.results.filter((result) => result.status === status).length]));
   }
 
+  function loadReport(candidate) {
+    report = validateReport(candidate);
+    byId('assessment-tab').hidden = false;
+    byId('export-json').hidden = false;
+    byId('print-report').hidden = false;
+    updateOverview();
+    switchView('assessment');
+  }
+
   function updateOverview() {
     const count = counts();
     const applicable = report.results.length - count.notApplicable;
@@ -103,8 +112,8 @@
     byId('profile-value').textContent = report.scope.profile;
     byId('scope-description').textContent = `${report.scope.categories.length} categories. Namespaces: ${report.scope.namespaces?.join(', ') || 'all reachable'}; excluded: ${report.scope.excludedNamespaces.join(', ') || 'none'}. Per-source collection is not an atomic snapshot.`;
     byId('report-banner').textContent = report.synthetic
-      ? 'SYNTHETIC SAMPLE - example inventory and findings for demonstration. No Azure or Kubernetes cluster was queried. Open an assessment JSON file to view collected results.'
-      : 'POINT-IN-TIME ASSESSMENT - review source timestamps, collection errors, scope, and manual controls before using these results.';
+      ? 'SYNTHETIC SAMPLE - generated example data; no Azure or Kubernetes cluster was queried. Open an assessment JSON file to view collected results.'
+      : 'COLLECTED CONFIGURATION - check source timestamps, collection errors, scope, and manual reviews before interpreting results.';
     const bar = byId('status-bar');
     const legend = byId('status-legend');
     bar.replaceChildren();
@@ -160,7 +169,7 @@
     const assertion = element('section');
     assertion.append(element('h4', 'Assertion'), element('p', control.assertion));
     const remediation = element('section');
-    remediation.append(element('h4', 'Suggested follow-up'), element('p', control.remediation));
+    remediation.append(element('h4', 'Next steps'), element('p', control.remediation));
     const references = element('section');
     references.append(element('h4', 'Official Microsoft guidance'));
     const links = element('ul');
@@ -176,7 +185,7 @@
     body.append(assertion, remediation, references, boundary);
     if (result) {
       const observed = element('section', undefined, 'observation');
-      observed.append(element('h4', 'Observed evidence and collection provenance'));
+      observed.append(element('h4', 'Observed values and collection details'));
       if (result.classification) observed.append(element('p', `Classification: ${result.classification}${result.incomplete ? ' | Partial evidence: unresolved observations remain.' : ''}`));
       const text = JSON.stringify({ observed: result.observed ?? null, evidence: result.evidence }, null, 2);
       observed.append(element('pre', text));
@@ -193,7 +202,7 @@
     const status = byId('status-filter').value;
     const platform = byId('platform-filter').value;
     const mode = byId('mode-filter').value;
-    const results = new Map(report.results.map((result) => [result.id, result]));
+    const results = new Map(report ? report.results.map((result) => [result.id, result]) : []);
     const available = view === 'catalog' ? controls : controls.filter((control) => results.has(control.id));
     const filtered = available.filter((control) => {
       const result = view === 'catalog' ? undefined : results.get(control.id);
@@ -207,27 +216,35 @@
     byId('findings').replaceChildren(...filtered.map((control) => findingCard(control, view === 'catalog' ? undefined : results.get(control.id))));
     byId('result-count').textContent = `${filtered.length} of ${available.length} controls`;
     byId('empty-state').hidden = filtered.length > 0;
-    byId('results-title').textContent = view === 'catalog' ? 'Assessment control catalogue' : 'Findings and open reviews';
-    byId('results-eyebrow').textContent = view === 'catalog' ? 'ASSESSMENT CONTROLS' : 'EVIDENCE REGISTER';
+    byId('results-title').textContent = view === 'catalog' ? 'Assessment control catalogue' : 'Findings and manual reviews';
+    byId('results-eyebrow').textContent = view === 'catalog' ? 'ASSESSMENT CONTROLS' : 'CHECK RESULTS';
   }
 
   function switchView(next) {
     view = next;
     for (const button of document.querySelectorAll('[data-view]')) button.setAttribute('aria-pressed', String(button.dataset.view === view));
+    byId('hero-title').textContent = view === 'getting-started' ? 'Get started with AKS X-Ray' : 'AKS configuration assessment';
+    byId('hero-meta').hidden = view !== 'assessment';
+    byId('getting-started-view').hidden = view !== 'getting-started';
+    byId('getting-started-next').hidden = view !== 'getting-started';
+    byId('collection-guide').hidden = !['getting-started', 'catalog'].includes(view);
     byId('assessment-view').hidden = view !== 'assessment';
     byId('catalog-intro').hidden = view !== 'catalog';
     byId('method-view').hidden = view !== 'method';
-    byId('results-section').hidden = view === 'method';
+    byId('results-section').hidden = !['assessment', 'catalog'].includes(view);
     byId('status-filter-label').hidden = view === 'catalog';
     byId('platform-filter-label').hidden = view !== 'catalog';
-    updateFindings();
+    if (view === 'assessment' || view === 'catalog') updateFindings();
   }
 
   function planner() {
     const launcher = byId('planner-launcher').value;
     const command = launcher === 'powershell' ? '.\\scripts\\Invoke-AksXRay.ps1' : launcher === 'bash' ? 'bash scripts/aks-xray.sh' : 'node bin/aks-xray.mjs';
     const category = byId('planner-category').value;
-    byId('planned-command').textContent = `${command} collect --platform ${byId('planner-platform').value} --context "<context>" --subscription "<subscription-guid>" --resource-group "<resource-group>" --cluster "<cluster-name>"${category === 'all' ? '' : ` --categories ${category}`}`;
+    const platform = byId('planner-platform').value;
+    byId('doctor-command').textContent = `${command} doctor --platform ${platform}`;
+    byId('planned-command').textContent = `${command} collect --platform ${platform} --context "<context>" --subscription "<subscription-guid>" --resource-group "<resource-group>" --cluster "<cluster-name>"${category === 'all' ? '' : ` --categories ${category}`}`;
+    byId('local-prerequisite').hidden = platform !== 'local';
   }
 
   for (const category of categories) {
@@ -273,10 +290,7 @@
     if (!file) return;
     try {
       if (file.size > 20 * 1024 * 1024) throw new Error('The report exceeds the 20 MiB import limit.');
-      const imported = validateReport(JSON.parse(await file.text()));
-      report = imported;
-      updateOverview();
-      switchView('assessment');
+      loadReport(JSON.parse(await file.text()));
       notify(`Loaded ${file.name}. This browser only reads local report data; it does not connect to your cluster.`);
     } catch (error) { notify(`Assessment was not loaded: ${error.message}`); }
     event.target.value = '';
@@ -306,8 +320,7 @@
     printState = undefined;
   });
   byId('print-report').addEventListener('click', () => window.print());
-  validateReport(report);
-  updateOverview();
-  updateFindings();
+  if (embedded.assessment !== null) loadReport(embedded.assessment);
+  else switchView('getting-started');
   planner();
 })();

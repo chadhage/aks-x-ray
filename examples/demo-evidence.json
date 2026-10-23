@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0",
   "toolVersion": "0.1.0",
-  "catalogVersion": "2026.10.20",
-  "catalogDigest": "7bb85b77cf4e668f04a323258897959487f082df698cb85ed744a9caee1ae5db",
+  "catalogVersion": "2026.10.21",
+  "catalogDigest": "03e5d5c827f31d828b50881577e45edf0e6919bbb5fbcc8d1f650a41f814f96a",
   "collectedAt": "2026-10-20T12:00:00.000Z",
   "synthetic": true,
   "target": {

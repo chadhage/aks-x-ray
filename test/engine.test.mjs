@@ -9,7 +9,7 @@ import { requiredSources } from '../src/collector.mjs';
 
 const finding = (evidence, id) => assess(evidence).results.find((result) => result.id === id);
 
-test('catalogue is exclusively first-party and all controls are executable or explicit reviews', () => {
+test('catalogue sources use Microsoft Learn and all controls have evaluators or manual reviews', () => {
   assert.ok(validateCatalog().controls >= 65);
   for (const platform of ['cloud', 'local']) {
     const report = assess(demoEvidence(platform));

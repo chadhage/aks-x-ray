@@ -378,7 +378,7 @@ export function evaluateRule(id, evidence) {
     }
     case 'ACT-002': {
       const data = evidence.sources.activeE2E.data;
-      if (!Number.isInteger(data.attempted) || !Number.isInteger(data.successes)) throw new Error('Incomplete end-to-end request counts.');
+      if (!Number.isInteger(data.attempted) || !Number.isInteger(data.successes)) throw new Error('Incomplete HTTP port-forward request counts.');
       return outcome(data.attempted === 3 && data.successes === 3 ? 'pass' : 'fail', 'Three synthetic loopback port-forward requests.', data);
     }
     case 'ACT-003': {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Point-in-time configuration assessment and evidence review for AKS on Azure and AKS on Azure Local, mapped to official Microsoft guidance.">
+  <meta name="description" content="Collect AKS and AKS on Azure Local configuration, compare it with selected Microsoft recommendations, and read the results in HTML or JSON.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src data:; base-uri 'none'; form-action 'none'">
   <title>AKS X-Ray | AKS configuration assessment</title>
   <script>
@@ -17,35 +17,66 @@
   <style><!--XRAY_STYLE--></style>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to assessment</a>
+  <a class="skip-link" href="#main">Skip to content</a>
   <header class="masthead">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">X</span><div><strong>AKS X-RAY</strong><span>Configuration assessment &amp; evidence</span></div></div>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">X</span><div><strong>AKS X-RAY</strong><span>Configuration checks and reports</span></div></div>
     <div class="header-actions">
       <label class="button" for="import-file">Open assessment JSON</label>
       <input id="import-file" class="visually-hidden" type="file" accept=".json,application/json">
-      <button id="export-json" type="button">Export JSON</button>
-      <button id="print-report" type="button">Print</button>
+      <button id="export-json" type="button" hidden>Export JSON</button>
+      <button id="print-report" type="button" hidden>Print</button>
       <button id="toggle-theme" type="button" aria-label="Switch color theme">Theme</button>
     </div>
   </header>
   <nav class="tabs" aria-label="Report sections">
-    <button type="button" data-view="assessment" aria-pressed="true">Assessment</button>
+    <button type="button" data-view="getting-started" aria-pressed="true">Getting started</button>
+    <button id="assessment-tab" type="button" data-view="assessment" aria-pressed="false" hidden>Assessment</button>
     <button type="button" data-view="catalog" aria-pressed="false">Assessment controls</button>
     <button type="button" data-view="method" aria-pressed="false">Method &amp; sources</button>
   </nav>
   <main id="main">
     <div id="notification" class="notice" role="alert" hidden></div>
     <section class="hero">
-      <p class="eyebrow">AKS / CONFIGURATION AND OPERATIONAL EVIDENCE</p>
-      <h1>AKS configuration assessment</h1>
-      <p class="lede">Compare observed cluster configuration with selected Microsoft guidance. Identify deviations, missing evidence, and areas requiring engineering review.</p>
-      <div class="hero-meta"><span id="platform-label" class="pill"></span><span id="context-label"></span><span id="catalog-label"></span></div>
+      <p class="eyebrow">AKS CONFIGURATION ASSESSMENT</p>
+      <h1 id="hero-title">Get started with AKS X-Ray</h1>
+      <p class="lede">Check cluster configuration against selected Microsoft recommendations. Results list configuration differences, collection errors, and checks that require manual review.</p>
+      <div id="hero-meta" class="hero-meta" hidden><span id="platform-label" class="pill"></span><span id="context-label"></span><span id="catalog-label"></span></div>
     </section>
 
-    <section id="assessment-view" aria-label="Assessment results">
+    <section id="getting-started-view" aria-label="Getting started">
+      <p class="getting-started-summary">Collect read-only evidence locally, then open your results. This page does not sign in, connect to Azure or Kubernetes, or run commands.</p>
+      <div class="getting-started-actions">
+        <a class="button button-primary" href="#collect-step">Build your assessment command</a>
+        <!--XRAY_SAMPLE_LINK-->
+      </div>
+      <div class="two-column getting-started-preparation">
+        <article class="panel">
+          <p class="eyebrow">01 / PREREQUISITES</p>
+          <h2>Prepare your tools and access</h2>
+          <ul class="spaced-list">
+            <li>Install Node.js 22+, Git, Azure CLI and a compatible <code>kubectl</code>. No npm dependencies are required. Entra-authenticated contexts may also need <code>kubelogin</code>.</li>
+            <li>Use your organization's normal process to sign in to Azure and prepare an existing Kubernetes context for the intended cluster.</li>
+            <li>Obtain approved Azure metadata read access and Kubernetes <code>get</code>/<code>list</code> access for the selected checks. Missing permissions remain explicit evidence gaps.</li>
+          </ul>
+          <p><a href="https://github.com/chadhage/aks-x-ray/blob/master/docs/permissions.md" target="_blank" rel="noopener noreferrer">Review permissions and prerequisites</a></p>
+        </article>
+        <article class="panel">
+          <p class="eyebrow">02 / LOCAL SETUP</p>
+          <h2>Clone the repository and identify your target</h2>
+          <pre class="command" tabindex="0">git clone https://github.com/chadhage/aks-x-ray.git
+cd aks-x-ray</pre>
+          <p>Confirm your signed-in account and find the exact context name:</p>
+          <pre class="command" tabindex="0">az account show
+kubectl config get-contexts</pre>
+          <p>Keep the target subscription GUID, resource group, cluster name and context ready. The collector never chooses a subscription, downloads credentials or switches context for you.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="assessment-view" aria-label="Assessment results" hidden>
       <div id="report-banner" class="notice"></div>
       <div class="metric-grid">
-        <article class="metric"><span>Observed deviations</span><strong id="metric-fail">-</strong><p>Configuration findings, not assumed incidents</p></article>
+        <article class="metric"><span>Failed checks</span><strong id="metric-fail">-</strong><p>A failed check does not establish an incident</p></article>
         <article class="metric"><span>Pass rate (evaluated controls)</span><strong id="metric-alignment">-</strong><p id="alignment-detail">Pass / (pass + fail); excludes controls not evaluated</p></article>
         <article class="metric"><span>Evidence coverage</span><strong id="metric-coverage">-</strong><p>Complete pass/fail checks / all applicable checks</p></article>
         <article class="metric"><span>Open reviews and evidence gaps</span><strong id="metric-unproven">-</strong><p>Review, unknown, error and not-run controls</p></article>
@@ -55,31 +86,65 @@
         <dl class="scope-facts">
           <div><dt>Target binding</dt><dd id="binding-value"></dd></div>
           <div><dt>Collected</dt><dd id="collected-value"></dd></div>
-          <div><dt>Baseline</dt><dd id="profile-value"></dd></div>
+          <div><dt>Profile</dt><dd id="profile-value"></dd></div>
         </dl>
         <div id="status-bar" class="status-bar" aria-hidden="true"></div>
         <div id="status-legend" class="legend"></div>
       </section>
       <div id="operational-alert" class="notice error-notice" hidden></div>
-      <section id="priorities" class="priority-grid" aria-label="Highest-severity observed deviations"></section>
+      <section id="priorities" class="priority-grid" aria-label="Highest-severity failed checks"></section>
     </section>
 
     <section id="catalog-intro" class="panel" hidden>
       <p class="eyebrow">CONTROL CATALOGUE</p>
       <h2>Select categories for assessment.</h2>
       <p>Each control documents its assertion, evidence dependencies, platform applicability, limitations, and Microsoft references. Manual controls require further evidence. Active controls run only with separate authorization.</p>
+    </section>
+
+    <section id="collection-guide" class="panel" aria-labelledby="collect-step">
+      <p class="eyebrow">03 / COLLECT YOUR EVIDENCE</p>
+      <h2 id="collect-step" tabindex="-1">Build a read-only assessment command</h2>
+      <p>Choose your platform, scope and launcher. Run these commands from the repository directory in your own terminal; this page only builds the command text.</p>
       <div class="planner">
         <label>Platform<select id="planner-platform"><option value="cloud">AKS on Azure</option><option value="local">AKS on Azure Local</option></select></label>
         <label>Assessment category<select id="planner-category"><option value="all">All categories</option></select></label>
         <label>Launcher<select id="planner-launcher"><option value="powershell">PowerShell</option><option value="bash">Bash</option><option value="node">Node.js</option></select></label>
       </div>
+      <p id="local-prerequisite" class="fine-print" hidden>Azure Local requires the current <code>aksarc</code> Azure CLI extension, installed by you through your approved process. See <a href="https://github.com/chadhage/aks-x-ray/blob/master/docs/coverage.md" target="_blank" rel="noopener noreferrer">platform coverage</a>.</p>
+      <p>First, check that the local tools are available:</p>
+      <pre id="doctor-command" class="command" tabindex="0"></pre>
+      <p>Then replace every placeholder below with your explicit target and run collection:</p>
       <pre id="planned-command" class="command" tabindex="0"></pre>
       <button id="copy-command" type="button">Copy command</button>
-      <p class="fine-print">Replace placeholders locally. Sign in yourself and supply an existing context. The microsite neither connects to Azure nor executes commands.</p>
+      <p class="fine-print"><code>collect</code> uses Azure reads and Kubernetes get/list only. It also evaluates the evidence and writes reports. Selecting all categories does not authorize active tests. The production recommendation profile is the default.</p>
     </section>
 
-    <section id="results-section" aria-label="Controls">
-      <div class="section-heading"><div><p class="eyebrow" id="results-eyebrow">EVIDENCE REGISTER</p><h2 id="results-title">Findings &amp; open questions</h2></div><p id="result-count" role="status" aria-live="polite"></p></div>
+    <section id="getting-started-next" class="two-column getting-started-next" aria-label="Review your results">
+      <article class="panel">
+        <p class="eyebrow">04 / REVIEW YOUR RESULTS</p>
+        <h2>Open the report from your run</h2>
+        <p>The CLI prints a new output directory under <code>artifacts</code>. Open that directory and choose:</p>
+        <ul class="spaced-list">
+          <li><code>report.html</code> to view your self-contained assessment directly in a browser.</li>
+          <li><strong>Open assessment JSON</strong> on this page, then select the run's <code>assessment.json</code>. It is read locally in your browser, not uploaded.</li>
+          <li><code>evidence.json</code> for the underlying inventory and collection provenance. Raw evidence is evaluated by the CLI, not imported into this viewer.</li>
+        </ul>
+        <label class="button" for="import-file">Open assessment JSON</label>
+      </article>
+      <article class="panel">
+        <p class="eyebrow">INTERPRET AND PROTECT</p>
+        <h2>Result limits and data handling</h2>
+        <ul class="spaced-list">
+          <li>Review collection errors, unknown results, timestamps and target binding before drawing conclusions. Manual reviews and tests not run are not passes.</li>
+          <li>The pass rate covers evaluated pass/fail controls only. Neither it nor evidence coverage measures overall health, security or compliance.</li>
+          <li>Reports contain sensitive resource names, endpoints and identity metadata. Keep your output private; never publish real cluster reports to the public website.</li>
+        </ul>
+        <p><a href="https://github.com/chadhage/aks-x-ray#assess-a-cloud-aks-cluster" target="_blank" rel="noopener noreferrer">Read the full collection guide</a></p>
+      </article>
+    </section>
+
+    <section id="results-section" aria-label="Controls" hidden>
+      <div class="section-heading"><div><p class="eyebrow" id="results-eyebrow">CHECK RESULTS</p><h2 id="results-title">Findings and manual reviews</h2></div><p id="result-count" role="status" aria-live="polite"></p></div>
       <div class="filters">
         <label class="search-field">Search controls<input id="search" type="search" placeholder="DNS, identity, backup, CP-001..." autocomplete="off"></label>
         <label>Category<select id="category-filter"><option value="all">All categories</option></select></label>
@@ -89,15 +154,15 @@
         <button id="reset-filters" type="button">Reset</button>
       </div>
       <div id="findings" class="findings"></div>
-      <div id="empty-state" class="panel" hidden>No controls match these filters. Reset filters to restore the full register.</div>
+      <div id="empty-state" class="panel" hidden>No controls match these filters. Reset filters to show all controls.</div>
     </section>
 
     <section id="method-view" hidden>
       <div class="two-column">
         <article class="panel">
-          <p class="eyebrow">EVIDENCE CONTRACT</p><h2>What a result actually means</h2>
+          <p class="eyebrow">RESULT STATUS</p><h2>Result definitions</h2>
           <dl class="definitions">
-            <div><dt>Pass</dt><dd>The specific assertion is supported by observed configuration or a recorded synthetic measurement. It is not proof of end-to-end compliance.</dd></div>
+            <div><dt>Pass</dt><dd>The specific assertion is supported by observed configuration or a recorded synthetic measurement. It does not establish compliance for the cluster.</dd></div>
             <div><dt>Fail</dt><dd>Observed evidence contradicts the stated recommendation or exposes a configuration conflict. Review workload context and approved exceptions before remediation.</dd></div>
             <div><dt>Review</dt><dd>Owner intent, telemetry, physical infrastructure, policy assignments or operational evidence is required. Review is never counted as pass.</dd></div>
             <div><dt>Unknown / error</dt><dd>Required access, API fields or valid measurements are missing, or evaluation failed. Unavailable data is never replaced with an empty successful result.</dd></div>
@@ -111,7 +176,7 @@
             <li>Inventory is projected before persistence. Secret values, kubeconfig credentials, environment values, application logs, commands, arbitrary annotations and event messages are not exported.</li>
             <li>Reports still contain sensitive resource names, labels, endpoints, RBAC subjects and subscription metadata. Protect them and review before sharing.</li>
             <li>Active tests require explicit authorization, a confirmed context and a verified target. Only owned synthetic resources are created and cleaned up.</li>
-            <li>Synthetic load is a bounded smoke test, not a full stress/soak campaign. Admission testing is defensive validation, not an exploitation-based penetration test.</li>
+            <li>The HTTP load test runs within fixed request and duration limits. It does not measure application capacity or sustained load. Admission testing submits a server-side dry-run; it does not attempt exploitation.</li>
             <li>Backups, failover, host security, Azure Local physical fault domains, external ingress/WAF, full effective routing, CVEs and identity governance need additional evidence.</li>
           </ul>
         </article>
@@ -121,14 +186,14 @@
         <p>The pass rate is pass / (pass + fail) and is suppressed when target binding is unverified. Evidence coverage is complete pass/fail controls / all applicable controls, including manual reviews and not-run tests. Neither metric represents overall cluster health. The production profile is the default; apply recommendations in the context of the workload, platform, and documented design decisions.</p>
         <p>Collection is not an atomic snapshot: each source carries its own timestamp and command. Evidence and reports are versioned and paired with local SHA-256 hashes. Hashes detect changes; they do not authenticate the collector or certify the cluster. The paired evidence JSON contains the data behind each JSON pointer.</p>
         <p id="source-policy"></p>
-        <p><strong>Using guidance as a design baseline.</strong> Treat each recommendation as an engineering reference, not a universal requirement. Confirm current platform support and workload requirements; document applicability, accepted deviations, and compensating controls in the relevant architecture or operations record.</p>
+        <p><strong>Applying recommendations.</strong> A recommendation may not apply to every cluster. Confirm current platform support and workload requirements; document applicability, accepted deviations, and compensating controls in the relevant architecture or operations record.</p>
       </article>
       <div class="section-heading"><div><p class="eyebrow">DOCUMENTATION REFERENCES</p><h2>Microsoft Learn sources</h2></div><span id="review-date"></span></div>
       <div id="sources" class="source-grid"></div>
     </section>
   </main>
   <footer><strong>AKS X-Ray</strong><span>Independently authored. Not a Microsoft product, support statement or compliance certification.</span><span>Offline by design. No analytics. No external assets.</span></footer>
-  <noscript><p class="notice">JavaScript is required for this interactive report. Read the paired assessment.md or assessment.json instead.</p></noscript>
+  <noscript><p class="notice">JavaScript is required for the command builder and interactive reports. Read the <a href="https://github.com/chadhage/aks-x-ray#prerequisites">getting-started guide</a> for CLI instructions, or a generated report's paired assessment.md or assessment.json.</p></noscript>
   <script id="xray-data" type="application/json"><!--XRAY_DATA--></script>
   <script><!--XRAY_SCRIPT--></script>
 </body>

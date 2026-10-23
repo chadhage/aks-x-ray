@@ -1,27 +1,27 @@
 # AKS X-Ray
 
-Configuration and evidence assessment for Azure Kubernetes Service and AKS enabled by Azure Arc on Azure Local.
+Collect and assess configuration for Azure Kubernetes Service and AKS enabled by Azure Arc on Azure Local.
 
-The toolkit compares observed configuration with selected Microsoft guidance for an **explicit Azure target and Kubernetes context**, then produces a standalone microsite and machine-readable evidence.
+The CLI reads configuration for an **explicit Azure target and Kubernetes context**, compares it with selected Microsoft recommendations, and writes an HTML report and JSON files.
 
-The initial catalogue contains **71 controls across 15 architectural categories**, grounded in **20 official Microsoft Learn references** reviewed on **2026-10-20**. It distinguishes:
+The catalogue defines **71 controls across 15 categories** and cites **20 Microsoft Learn references** reviewed on **2026-10-20**. Results distinguish:
 
 - Observed adherence to a specific recommendation.
 - Observed deviations and misconfiguration.
 - Configuration conflicts and missing declarations.
 - Evidence gaps, collection errors and controls that need human/operational review.
 
-Outputs are point-in-time engineering evidence, not a Microsoft product, compliance certification, exhaustive vulnerability scan, or conclusion that a cluster is healthy. Manual assessments identify where static inventory is insufficient. Active suites provide bounded synthetic validation; they are not a replacement for workload-specific performance testing or an authorized penetration test.
+Outputs describe configuration observed during collection and any synthetic test results. They are not a Microsoft product, compliance certification, exhaustive vulnerability scan, or conclusion that a cluster is healthy. Manual controls identify checks that static inventory cannot complete. Active suites test generated resources within fixed limits; they do not replace workload-specific performance testing or an authorized penetration test.
 
-## Microsite
+## HTML reports and website
 
-**Published microsite:** [chadhage.github.io/aks-x-ray](https://chadhage.github.io/aks-x-ray/).
+**Website:** [chadhage.github.io/aks-x-ray](https://chadhage.github.io/aks-x-ray/).
 
-Open [site/index.html](site/index.html) directly in a browser. It includes a labelled synthetic report, the assessment-control catalogue, category and platform filters, a command builder, methodology, and Microsoft Learn references.
+Open [site/index.html](site/index.html) directly in a browser. It starts with prerequisites, local setup, a read-only collection command builder, and instructions for opening your results. No assessment is loaded by default. Choose **View a sample assessment (synthetic)** to open the separate [sample report](site/sample.html), or **Open assessment JSON** to view your own collected results locally. The assessment-control catalogue, filters, methodology, and Microsoft Learn references remain available without loading a report.
 
-The [Pages workflow](.github/workflows/pages.yml) validates and rebuilds the site on pushes to `master` or manual dispatch. It publishes **only the generated synthetic standalone HTML**, not repository contents or collected assessment artifacts. Never publish real cluster reports to this public site. Opening a local assessment through the microsite reads it in your browser without uploading it.
+The [Pages workflow](.github/workflows/pages.yml) validates and rebuilds the site on pushes to `master` or manual dispatch. It publishes **only the generated getting-started homepage and synthetic sample HTML**, not repository contents or collected assessment artifacts. Never publish real cluster reports to this public site. Opening a local assessment through the website reads it in your browser without uploading it. Generated run reports open directly to their assessment results.
 
-To generate your own synthetic artifacts without touching Azure:
+To generate example reports without connecting to Azure:
 
 ```powershell
 git clone https://github.com/chadhage/aks-x-ray.git
@@ -72,7 +72,7 @@ bash scripts/aks-xray.sh collect \
   --cluster "my-aks-cluster"
 ```
 
-### Isolate categories or namespaces
+### Select categories or namespaces
 
 ```powershell
 node .\bin\aks-xray.mjs collect `
@@ -96,7 +96,7 @@ node .\bin\aks-xray.mjs collect `
   --subscription "<subscription-guid>" --resource-group "my-local-resource-group" --cluster "my-local-cluster"
 ```
 
-The Local adapter uses `az aksarc show`; cloud-only properties are **not** assumed. Local control-plane count and endpoint binding use the documented `controlPlane` API fields. Physical hosts, Arc health, certified hardware, storage resilience and disconnected-operation dependencies require separate evidence. Legacy AKS on Windows Server/old HCI APIs, arbitrary Arc-connected Kubernetes and AKS on bare metal are not automatically certified as supported adapters. See [platform coverage](docs/coverage.md).
+The Local adapter uses `az aksarc show`; cloud-only properties are **not** assumed. Local control-plane count and endpoint binding use the documented `controlPlane` API fields. Physical hosts, Arc health, certified hardware, storage resilience and disconnected-operation dependencies require separate evidence. There are no dedicated adapters for legacy AKS on Windows Server/old HCI APIs, arbitrary Arc-connected Kubernetes or AKS on bare metal. See [platform coverage](docs/coverage.md).
 
 ## What is produced
 
@@ -104,14 +104,14 @@ Each run writes to a new directory under ignored [artifacts/](artifacts/), or an
 
 | File | Purpose |
 |---|---|
-| `report.html` | Standalone themed microsite; search/filter findings, evidence, scope and official citations |
+| `report.html` | Self-contained HTML report with finding filters, observed values, scope and source references |
 | `evidence.json` | Versioned, projected inventory, commands, collection timestamps and explicit errors |
 | `assessment.json` | Machine-readable findings, observations, provenance, scope and summary |
-| `assessment.md` | Portable human-readable summary |
+| `assessment.md` | Markdown summary |
 | `checksums.json` | SHA-256 hashes for the other generated files; detects edits, not authorship |
 | `active-manifest.json` | Active runs only: exact synthetic workload resources |
 
-Reports have no analytics, external assets, backend or browser-to-cluster connection. The microsite can open an `assessment.json` locally; raw evidence is evaluated by the CLI, not arbitrary browser code.
+Reports have no analytics, external assets, backend or browser-to-cluster connection. The website can open an `assessment.json` locally. Use the CLI to evaluate raw evidence; the browser displays assessment results.
 
 **Protect all outputs.** Metadata is still sensitive: resource names, labels, endpoints, RBAC subjects and subscription identifiers can reveal architecture. Output folders are ignored by Git; POSIX files use private modes, while Windows relies on inherited ACLs. Use a protected local directory and review before sharing. Arbitrary imported JSON is not a secret-redaction service.
 
@@ -123,9 +123,9 @@ node .\bin\aks-xray.mjs report --input ".\artifacts\my-run\assessment.json"
 node .\bin\aks-xray.mjs verify --input ".\artifacts\my-run"
 ```
 
-Use the matching catalogue version **and digest**. Reassessment cannot invent uncollected evidence. The source catalogue and all control assertions remain in the repository for reproducibility. Collection spans multiple API requests and is not an atomic snapshot.
+Use the matching catalogue version **and digest**. Catalogue text is included in the digest, so wording-only revisions also require the matching repository revision. Reassessment cannot evaluate evidence that was not collected. The source catalogue and all control assertions remain in the repository for reproducibility. Collection spans multiple API requests and is not an atomic snapshot.
 
-## Explicitly authorized active validation
+## Active tests require authorization
 
 **Do not start here on a production cluster.** Read the [active-testing runbook](docs/active-testing.md), approve scope and permissions, and validate the runner on an expendable nonproduction cluster first. No live-cluster validation has been performed as part of this repository's initial implementation.
 
@@ -162,7 +162,7 @@ The runner creates an unpredictable owned namespace, constrained jobs with four-
 | `storage` | PVC binding, Azure Disk topology, backend/retention/encryption review |
 | `observability` | Audit routing, managed metrics/logs, warning reasons, alerts and SLO proof |
 | `governance` | Policy enablement, quotas, admission/defaults/compliance review |
-| `cost` | Autoscaling bounds, NAP capability, measured rightsizing/capacity review |
+| `cost` | Autoscaling bounds, NAP configuration, measured resource use and capacity costs |
 | `lifecycle` | Upgrade/OS channels, maintenance windows, current support-window review |
 | `business-continuity` | Restore evidence, RPO/RTO, region/site recovery |
 | `azure-local` | Provisioning, control-plane redundancy, host/Arc/physical infrastructure evidence |
@@ -195,4 +195,4 @@ The native-launcher regression uses PowerShell 7 (`pwsh`) on Windows and Bash on
 
 The optional [cloud metadata Reader Bicep](infra/metadata-reader.bicep) and [Kubernetes read-only role](manifests/reader-clusterrole.yaml) are **not deployed automatically**. The YAML role uses YAML 1.2's JSON syntax so its complete contents and permissions can be validated without a YAML package. Permission grants must be approved separately.
 
-Before changing controls, read [contribution guidance](CONTRIBUTING.md). This toolkit intentionally exposes what remains unproven rather than offering a misleading "all clear."
+Before changing controls, read [contribution guidance](CONTRIBUTING.md). Missing evidence and checks that were not run remain visible in the results.

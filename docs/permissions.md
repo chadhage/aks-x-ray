@@ -17,7 +17,7 @@ Local reads:
 
 Azure **Reader** on the applicable cluster resource scope is a reasonable metadata starting point; validate your organization's deny assignments and policies. Local provisioned cluster instances can be extension resources under an Arc connected-cluster resource; grant the approved read scope for that actual resource hierarchy. Disconnected management-plane access can be unavailable even while Kubernetes is reachable; that remains an evidence gap.
 
-The optional [Bicep template](../infra/metadata-reader.bicep) grants Reader on one **existing cloud AKS cluster**. It grants no Kubernetes access and is never invoked by collection. An authorized administrator can review/what-if/deploy it through normal IaC governance. Do not grant subscription-wide rights merely to suppress assessment unknowns.
+The optional [Bicep template](../infra/metadata-reader.bicep) grants Reader on one **existing cloud AKS cluster**. It grants no Kubernetes access and is never invoked by collection. An authorized administrator can review it, run a what-if, and deploy it through the approved infrastructure deployment process. Do not grant subscription-wide rights merely to suppress assessment unknowns.
 
 ## Kubernetes data plane
 
@@ -46,6 +46,6 @@ The read-only role intentionally **cannot** run active tests. Those need separat
 - Create `pods/exec` and `pods/portforward` sessions for the synthetic workload.
 - Submit a Pod **server-side dry-run** to exercise restricted admission.
 
-RBAC cannot scope namespace-creation permission to an already nonexistent namespace in the same way as a namespace-local Role. Use a controlled testing identity, an admission policy limiting the allowed test namespace prefix/labels where appropriate, an approved maintenance window and supervision. The runner checks ownership; it does not replace platform access governance.
+RBAC cannot scope namespace-creation permission to an already nonexistent namespace in the same way as a namespace-local Role. Use a controlled testing identity, an admission policy limiting the allowed test namespace prefix/labels where appropriate, an approved maintenance window and supervision. The runner checks ownership; permissions still require separate review and approval.
 
 No permission grant, extension install or live-cluster mutation is performed by this repository's offline tests or CI.

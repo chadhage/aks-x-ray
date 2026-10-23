@@ -15,7 +15,7 @@ export async function readJson(path) {
 
 export function validateAssessment(value) {
   if (!isObject(value) || value.schemaVersion !== '1.0' || value.catalogVersion !== catalogVersion
-    || value.catalogDigest !== catalogDigest) throw new Error('Assessment schema or catalogue revision does not match this toolkit.');
+    || value.catalogDigest !== catalogDigest) throw new Error('Assessment schema or catalogue revision does not match this repository revision.');
   validateScope(value.scope);
   if (!isObject(value.target) || !['cloud', 'local'].includes(value.target.platform)
     || typeof value.target.context !== 'string' || !['verified', 'unverified', 'mismatch'].includes(value.target.binding?.status)) {
@@ -57,8 +57,8 @@ export function scriptJson(value) {
     .replaceAll('&', '\\u0026').replaceAll('\u2028', '\\u2028').replaceAll('\u2029', '\\u2029');
 }
 
-export async function renderHtml(assessment) {
-  validateAssessment(assessment);
+export async function renderHtml(assessment = null) {
+  if (assessment !== null) validateAssessment(assessment);
   const [template, style, script] = await Promise.all([
     readFile(new URL('../site/template.html', import.meta.url), 'utf8'),
     readFile(new URL('../site/styles.css', import.meta.url), 'utf8'),
@@ -66,6 +66,8 @@ export async function renderHtml(assessment) {
   ]);
   const data = { assessment, categories, controls, sourceCatalog, catalogVersion, catalogDigest };
   return template.replace('<!--XRAY_STYLE-->', () => style)
+    .replace('<!--XRAY_SAMPLE_LINK-->', () => assessment === null
+      ? '<a class="button" href="sample.html">View a sample assessment (synthetic)</a>' : '')
     .replace('<!--XRAY_DATA-->', () => scriptJson(data))
     .replace('<!--XRAY_SCRIPT-->', () => script);
 }
@@ -76,7 +78,7 @@ export function renderMarkdown(assessment) {
   validateAssessment(assessment);
   const lines = [
     '# AKS X-Ray assessment',
-    '', assessment.synthetic ? '**SYNTHETIC DEMO. Not a live cluster assessment.**' : '**Point-in-time evidence assessment. Not a certification or penetration-test attestation.**',
+    '', assessment.synthetic ? '**SYNTHETIC DEMO. Not a live cluster assessment.**' : '**Configuration observations from this collection. Not a compliance certification or penetration-test report.**',
     '', `- Platform: ${cell(assessment.target.platform)}`,
     `- Context: ${cell(assessment.target.context)}`,
     `- Binding: ${cell(assessment.target.binding.status)}`,
@@ -85,7 +87,7 @@ export function renderMarkdown(assessment) {
     `- Profile: ${assessment.scope.profile}`,
     `- Categories: ${assessment.scope.categories.join(', ')}`,
     `- Namespaces: ${assessment.scope.namespaces?.join(', ') ?? 'all reachable'}; excluded: ${assessment.scope.excludedNamespaces.join(', ') || 'none'}`,
-    `- Verified alignment: ${assessment.summary.alignmentPercent ?? 'unavailable'}${assessment.summary.alignmentPercent === null ? '' : '% of pass/fail controls only'}`,
+    `- Pass rate (evaluated controls): ${assessment.summary.alignmentPercent ?? 'unavailable'}${assessment.summary.alignmentPercent === null ? '' : '% of pass/fail controls only'}`,
     `- Evidence coverage: ${assessment.summary.evidenceCoveragePercent ?? 'unavailable'}% of applicable controls`,
     '', 'Manual review, unknown, error and not-run results are not passes. See the HTML report and JSON for observations and collection errors.',
     '', '| Control | Status | Severity | Finding |', '|---|---|---|---|'

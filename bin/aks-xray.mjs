@@ -54,7 +54,7 @@ Active tests (never implied by collect, even with all categories):
 Exit codes: 0 completed (no selected severity gate failed); 1 severity gate failed;
 2 invalid input, unavailable/partial evidence, unverified target or cleanup error.
 Manual review and deliberately not-run tests are NOT passes.
-Artifacts are sensitive inventory. Keep them private; the microsite is offline.
+Artifacts contain sensitive inventory. Keep them private; HTML reports run offline.
 `;
 
 const booleanOptions = new Set(['help', 'json', 'include-system', 'authorize-active']);

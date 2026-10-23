@@ -4,12 +4,12 @@
 
 Obtain written resource-owner authorization and an approved scope/window. Read [Microsoft's Azure penetration-testing policy](https://learn.microsoft.com/azure/security/fundamentals/pen-testing) and its linked authoritative rules of engagement. Resource-owner approval does not permit DoS, unauthorized access, excessive traffic or actions against other tenants.
 
-The implementation here is defensive synthetic validation. It does **not** perform exploitation, credential dumping, lateral movement, privilege escalation, node drains/deletion, chaos, a backup restore, or denial-of-service testing.
+These tests send DNS and HTTP requests to generated resources and check Pod admission with a server-side dry-run. They do **not** perform exploitation, credential dumping, lateral movement, privilege escalation, node drains/deletion, disruption tests, a backup restore, or denial-of-service testing.
 
 Before use:
 
 1. Review [permissions](permissions.md) and the generated resource design in [the active runner](../src/active.mjs).
-2. Test the runner against an expendable nonproduction cluster. The initial implementation has offline/mocked tests but has **not been certified on a live cloud or Local cluster**.
+2. Test the runner against a nonproduction test cluster. This implementation has offline/mocked tests but has **not been validated on a live cloud or Local cluster**.
 3. Collect real evidence with verified endpoint binding. Synthetic demo evidence, mismatched targets and unresolved prior cleanup are rejected.
 4. Approve the official `mcr.microsoft.com/azure-cli:azurelinux3.0` runtime. The [source registry](../catalog/sources.json) pins its reviewed MCR manifest digest; its image configuration is Linux amd64 and its official RPM requires Python. Review the pinned image's currency and vulnerability evidence before use. Updating a tag without revalidating the new digest is not sufficient. There is no automatic arbitrary-image override.
 5. Confirm that Linux amd64 nodes have capacity and that your admission policies permit the constrained resources. No policy is disabled or bypassed.
@@ -46,14 +46,14 @@ Ctrl+C/SIGTERM requests cancellation and cleanup. Power loss, forced process ter
 
 ## What the measurements establish
 
-| Suite | Proven when successful | Not proven |
+| Suite | Measured result | Not measured |
 |---|---|---|
 | Connectivity | A synthetic probe resolves and reaches its synthetic service | All pod-to-pod paths, cross-namespace deny behavior, external egress, NSG/UDR/firewall or IMDS isolation |
-| End-to-end | Three expected-marker responses through API port-forward | Real ingress, WAF, TLS, identity or a business transaction |
+| HTTP (`end-to-end`) | Three expected-marker responses through API port-forward | Real ingress, WAF, TLS, identity or a business transaction |
 | Load smoke | Actual samples meet the recorded error/p95 budgets | Application production capacity, node/network saturation, endurance, autoscaler performance or Microsoft SLO adherence |
 | Security admission | Restricted PSA rejects a privileged server dry-run in the test namespace | Existing namespace enforcement, effective least privilege, vulnerability absence or a full penetration test |
 
-Latency includes the client/API port-forward path. p95 is **nearest rank** over all attempt latencies; unsuccessful attempts also count in the error denominator. No request, malformed evidence or out-of-bounds limits cannot produce a passing performance result.
+Latency includes the client/API port-forward path. p95 is **nearest rank** over all attempt latencies; unsuccessful attempts also count in the error denominator. A run with no requests, malformed measurements or out-of-bounds limits cannot pass.
 
 ## Cleanup and recovery
 
@@ -69,15 +69,15 @@ When cleanup fails:
 
 A cleanup error returns exit code 2 and is displayed prominently even if measurements passed.
 
-## Broader performance and operational acceptance
+## Application performance and recovery testing
 
-For full performance evaluation, use a separately approved campaign following [Azure Load Testing guidance](https://learn.microsoft.com/azure/load-testing/overview-what-is-azure-load-testing):
+For application performance testing, use a separately approved test plan following [Azure Load Testing guidance](https://learn.microsoft.com/azure/load-testing/overview-what-is-azure-load-testing):
 
 - Define representative application transactions, authentication, data isolation and expected traffic.
 - Set owner-approved latency/error/throughput goals and explicit stop conditions; these are workload SLOs, not generic Microsoft thresholds.
 - Plan realistic baseline, controlled ramp, burst and endurance phases within permitted resource/traffic budgets. Do not implement DoS or indiscriminate saturation.
 - Capture time-series CPU/memory, throttling/OOM, scheduler, HPA/KEDA/VPA behavior, storage/network latency and control-plane signals.
 - Keep production/customer data protected and validate cleanup/cost ceilings.
-- Scope recovery, upgrade, failover, backup-restore and security engagements independently with explicit approval and rollback.
+- Plan recovery, upgrade, failover, backup-restore and security tests separately, with explicit approval and rollback.
 
 Attach those results to the manual controls rather than claiming the synthetic smoke test substitutes for them.

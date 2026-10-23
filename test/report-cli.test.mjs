@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { main, parseArgs } from '../bin/aks-xray.mjs';
 import { demoEvidence } from '../examples/demo.mjs';
 import { assess } from '../src/engine.mjs';
-import { prepareOutput, renderHtml, validateAssessment, verifyArtifacts, writeArtifacts } from '../src/report.mjs';
+import { prepareOutput, renderHtml, renderMarkdown, validateAssessment, verifyArtifacts, writeArtifacts } from '../src/report.mjs';
 import { runCommand } from '../src/process.mjs';
 
 async function temporary(t) {
@@ -69,6 +69,56 @@ test('standalone report inlines its dependencies and neutralizes script-closing 
   assert.ok(html.includes('\\u003c/script\\u003e'));
   assert.ok(!/<script[^>]*\ssrc=/.test(html));
   assert.ok(!/<link[^>]*\shref=/.test(html));
+  assert.ok(!html.includes('href="sample.html"'));
+  assert.match(html, /<h2>Result definitions<\/h2>/);
+  const embedded = JSON.parse(html.match(/<script id="xray-data" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+  assert.deepEqual(embedded.assessment, JSON.parse(JSON.stringify(assessment)));
+});
+
+test('getting-started homepage contains instructions and an explicit sample link, not an assessment', async () => {
+  const html = await renderHtml();
+  const embedded = JSON.parse(html.match(/<script id="xray-data" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+  assert.equal(embedded.assessment, null);
+  assert.ok(embedded.controls.length > 0);
+  assert.match(html, /Get started with AKS X-Ray/);
+  assert.match(html, /Clone the repository and identify your target/);
+  assert.match(html, /Result limits and data handling/);
+  assert.match(html, /Node\.js 22\+/);
+  assert.match(html, /git clone https:\/\/github\.com\/chadhage\/aks-x-ray\.git/);
+  assert.match(html, /id="doctor-command"/);
+  assert.match(html, /id="planned-command"/);
+  assert.match(html, /href="sample\.html">View a sample assessment \(synthetic\)/);
+  assert.match(html, /id="assessment-view"[^>]* hidden/);
+  assert.match(html, /id="results-section"[^>]* hidden/);
+  assert.match(html, /id="export-json"[^>]* hidden/);
+  assert.ok(!html.includes('demo-cloud'));
+  assert.ok(!html.includes('<!--XRAY_'));
+  assert.ok(!/<script[^>]*\ssrc=/.test(html));
+  assert.ok(!/<link[^>]*\shref=/.test(html));
+});
+
+test('Markdown reports name the pass/fail denominator and keep the collection limitations', () => {
+  const assessment = assess(demoEvidence());
+  assessment.synthetic = false;
+  const markdown = renderMarkdown(assessment);
+  assert.ok(markdown.includes(`- Pass rate (evaluated controls): ${assessment.summary.alignmentPercent}% of pass/fail controls only`));
+  assert.match(markdown, /Not a compliance certification or penetration-test report\./);
+  assert.match(markdown, /Manual review, unknown, error and not-run results are not passes\./);
+});
+
+test('published homepage and sample keep synthetic results separate', async () => {
+  const [homepage, sample] = await Promise.all([
+    readFile(new URL('../site/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../site/sample.html', import.meta.url), 'utf8')
+  ]);
+  const embedded = (html) => JSON.parse(html.match(/<script id="xray-data" type="application\/json">([\s\S]*?)<\/script>/)[1]);
+  assert.equal(embedded(homepage).assessment, null);
+  const assessment = embedded(sample).assessment;
+  assert.equal(assessment.synthetic, true);
+  assert.ok(assessment.results.length > 0);
+  assert.equal(validateAssessment(assessment), assessment);
+  assert.match(sample, /SYNTHETIC SAMPLE/);
+  assert.ok(!sample.includes('href="sample.html"'));
 });
 
 test('checksum changes are detected and output creation never overwrites existing evidence', async (t) => {

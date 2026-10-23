@@ -53,8 +53,8 @@ function validateData(id, data) {
 
 export function validateEvidence(value) {
   if (!isObject(value) || value.schemaVersion !== schemaVersion) throw new Error(`Evidence schemaVersion must be ${schemaVersion}.`);
-  if (value.catalogVersion !== catalogVersion) throw new Error(`Evidence needs catalogVersion ${catalogVersion}; use the matching toolkit revision.`);
-  if (value.catalogDigest !== catalogDigest) throw new Error('Evidence catalogue digest differs; assess with the matching toolkit revision.');
+  if (value.catalogVersion !== catalogVersion) throw new Error(`Evidence needs catalogVersion ${catalogVersion}; use the matching repository revision.`);
+  if (value.catalogDigest !== catalogDigest) throw new Error('Evidence catalogue digest differs; assess with the matching repository revision.');
   if (typeof value.synthetic !== 'boolean' || typeof value.toolVersion !== 'string') throw new Error('Evidence must declare its tool version and synthetic flag.');
   if (!isObject(value.target) || !['cloud', 'local'].includes(value.target.platform)
     || typeof value.target.context !== 'string' || !value.target.context.trim()

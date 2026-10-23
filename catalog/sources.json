@@ -1,7 +1,7 @@
 {
-  "catalogVersion": "2026.10.20",
+  "catalogVersion": "2026.10.21",
   "reviewedAt": "2026-10-20",
-  "policy": "Assessment guidance is drawn only from official Microsoft Learn documentation. Assertions are independent operationalizations, not Microsoft certification.",
+  "policy": "All assessment references use Microsoft Learn. This project defines the control assertions; they do not constitute Microsoft certification.",
   "activeImage": {
     "tag": "mcr.microsoft.com/azure-cli:azurelinux3.0",
     "reference": "mcr.microsoft.com/azure-cli@sha256:fb9f99e7db198c6b371dd93b1a527f43d88aaa3eb6b3f67687b510e5b24c8471",
@@ -11,7 +11,7 @@
   },
   "sources": [
     { "id": "aks-best-practices", "title": "AKS operator and developer best practices", "url": "https://learn.microsoft.com/azure/aks/best-practices", "scope": "Cloud AKS; distinguishes Automatic and Standard responsibilities." },
-    { "id": "aks-waf", "title": "Architecture best practices for AKS", "url": "https://learn.microsoft.com/azure/well-architected/service-guides/azure-kubernetes-service", "scope": "Cloud architecture across the five Well-Architected pillars." },
+    { "id": "aks-waf", "title": "Architecture best practices for AKS", "url": "https://learn.microsoft.com/azure/well-architected/service-guides/azure-kubernetes-service", "scope": "Cloud AKS recommendations for reliability, security, costs, operations and performance." },
     { "id": "aks-security", "title": "Cluster security and upgrades", "url": "https://learn.microsoft.com/azure/aks/operator-best-practices-cluster-security", "scope": "API access, container isolation, metadata exposure and upgrades." },
     { "id": "aks-pod-security", "title": "Pod security best practices", "url": "https://learn.microsoft.com/azure/aks/developer-best-practices-pod-security", "scope": "Least privilege, Linux security contexts, workload identity and vaults." },
     { "id": "aks-network", "title": "Network connectivity and security best practices", "url": "https://learn.microsoft.com/azure/aks/operator-best-practices-network", "scope": "Address planning, ingress, network policies, DNS and node access." },
@@ -23,12 +23,12 @@
     { "id": "aks-policy", "title": "Secure AKS with Azure Policy", "url": "https://learn.microsoft.com/azure/aks/use-azure-policy", "scope": "Add-on enablement is distinct from policy assignments and compliance." },
     { "id": "local-baseline", "title": "AKS baseline architecture for Azure Local", "url": "https://learn.microsoft.com/azure/architecture/example-scenario/hybrid/aks-baseline", "scope": "Local control plane, physical hosts, storage, security and capacity. Cloud-only recommendations are not automatically applied to Local." },
     { "id": "arc-security", "title": "Security book for Arc-enabled Kubernetes and AKS enabled by Arc", "url": "https://learn.microsoft.com/azure/azure-arc/kubernetes/conceptual-security-book", "scope": "Platform, workload, operations, data and network security for edge clusters." },
-    { "id": "local-api", "title": "Provisioned cluster instance resource reference", "url": "https://learn.microsoft.com/azure/templates/microsoft.hybridcontainerservice/provisionedclusterinstances", "scope": "Local controlPlane.count and controlPlane.controlPlaneEndpoint.hostIP; API fields are not a best-practice mandate." },
+    { "id": "local-api", "title": "Provisioned cluster instance resource reference", "url": "https://learn.microsoft.com/azure/templates/microsoft.hybridcontainerservice/provisionedclusterinstances", "scope": "Local controlPlane.count and controlPlane.controlPlaneEndpoint.hostIP. Describes API fields, not configuration recommendations." },
     { "id": "aksarc-cli", "title": "Azure CLI aksarc reference", "url": "https://learn.microsoft.com/cli/azure/aksarc", "scope": "Read-only Local metadata collection; preinstall the aksarc extension." },
     { "id": "azure-cli-image", "title": "Run Azure CLI in a Docker container", "url": "https://learn.microsoft.com/cli/azure/run-azure-cli-docker", "scope": "Official Microsoft Container Registry image used only in isolated active tests." },
     { "id": "aks-disk", "title": "Create and manage Azure Disk persistent volumes", "url": "https://learn.microsoft.com/azure/aks/azure-csi-disk-storage-provision", "scope": "WaitForFirstConsumer and topology-aware Azure Disk provisioning." },
     { "id": "aks-images", "title": "Container image management and security best practices", "url": "https://learn.microsoft.com/azure/aks/operator-best-practices-container-image-management", "scope": "Validated images, vulnerability assessment and base-image update pipelines. A tag check alone cannot prove these controls." },
-    { "id": "azure-testing-policy", "title": "Azure penetration testing policy", "url": "https://learn.microsoft.com/azure/security/fundamentals/pen-testing", "scope": "Resource-owner authorization and applicable Microsoft rules of engagement. No DoS, unauthorized access or exploitation is implemented by this toolkit." },
-    { "id": "azure-load-testing", "title": "Azure Load Testing overview", "url": "https://learn.microsoft.com/azure/load-testing/overview-what-is-azure-load-testing", "scope": "Separately scoped representative performance campaigns. The toolkit's small synthetic smoke budgets are operator-defined, not Microsoft performance requirements." }
+    { "id": "azure-testing-policy", "title": "Azure penetration testing policy", "url": "https://learn.microsoft.com/azure/security/fundamentals/pen-testing", "scope": "Resource-owner authorization and applicable Microsoft rules of engagement. The CLI does not perform DoS, unauthorized access or exploitation." },
+    { "id": "azure-load-testing", "title": "Azure Load Testing overview", "url": "https://learn.microsoft.com/azure/load-testing/overview-what-is-azure-load-testing", "scope": "Workload-specific performance tests with separate approval. The CLI's HTTP latency and error budgets are operator-defined, not Microsoft performance requirements." }
   ]
 }
